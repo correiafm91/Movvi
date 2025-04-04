@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -94,22 +93,7 @@ const Index = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {properties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  id={property.id}
-                  title={property.title}
-                  location={`${property.city}, ${property.state}`}
-                  price={property.price}
-                  imageUrl={property.mainImage || '/placeholder.svg'}
-                  beds={property.bedrooms}
-                  baths={property.bathrooms}
-                  squareMeters={property.area}
-                  isForRent={property.is_for_rent}
-                />
-              ))}
-            </div>
+            <PropertyList properties={properties} />
           )}
         </div>
       </section>
@@ -159,6 +143,40 @@ const Index = () => {
           </div>
         </div>
       </footer>
+    </div>
+  );
+};
+
+const PropertyList = ({ properties }: { properties: Property[] }) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {properties.length > 0 ? (
+        properties.map((property) => {
+          const mainImage = property.property_images?.find(img => img.is_main)?.image_url || 
+                           property.property_images?.[0]?.image_url || 
+                           '/placeholder.svg';
+          
+          return (
+            <PropertyCard
+              key={property.id}
+              id={property.id}
+              title={property.title}
+              price={property.price}
+              location={`${property.city}, ${property.state}`}
+              bedrooms={property.bedrooms}
+              bathrooms={property.bathrooms}
+              area={property.area}
+              imageUrl={mainImage}
+              isForRent={property.is_for_rent}
+              onClick={() => console.log(`Visualizando imóvel ${property.id}`)}
+            />
+          );
+        })
+      ) : (
+        <div className="col-span-full text-center py-10">
+          <p className="text-lg text-gray-500">Nenhum imóvel encontrado.</p>
+        </div>
+      )}
     </div>
   );
 };

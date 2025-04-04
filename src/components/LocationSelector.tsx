@@ -1,27 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { Label } from "@/components/ui/label";
+import { brazilianStates } from '@/lib/data';
 
 interface LocationSelectorProps {
   onLocationChange: (location: { state: string; city: string }) => void;
   disabled?: boolean;
 }
-
-const states = [
-  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
-  "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
-  "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
-  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia",
-  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
-];
-
-// Lista de cidades por estado (simplificada)
-const cities: { [key: string]: string[] } = {
-  "São Paulo": ["São Paulo", "Campinas", "Guarulhos", "São Bernardo do Campo", "Santo André"],
-  "Rio de Janeiro": ["Rio de Janeiro", "Niterói", "São Gonçalo", "Duque de Caxias", "Nova Iguaçu"],
-  "Minas Gerais": ["Belo Horizonte", "Uberlândia", "Contagem", "Juiz de Fora", "Uberaba"],
-  // Adicione mais estados conforme necessário
-};
 
 const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationChange, disabled }) => {
   const [selectedState, setSelectedState] = useState("");
@@ -30,8 +15,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationChange, d
 
   useEffect(() => {
     if (selectedState) {
-      if (cities[selectedState]) {
-        setAvailableCities(cities[selectedState]);
+      // Buscar o estado selecionado no array de estados brasileiros
+      const stateData = brazilianStates.find(state => state.name === selectedState);
+      if (stateData) {
+        setAvailableCities(stateData.mainCities);
       } else {
         setAvailableCities([]);
       }
@@ -61,9 +48,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationChange, d
           disabled={disabled}
         >
           <option value="">Selecione um estado</option>
-          {states.map((state) => (
-            <option key={state} value={state}>
-              {state}
+          {brazilianStates.map((state) => (
+            <option key={state.uf} value={state.name}>
+              {state.name}
             </option>
           ))}
         </select>

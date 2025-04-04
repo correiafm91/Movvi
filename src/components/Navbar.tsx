@@ -1,82 +1,109 @@
 
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { LogIn, User, Home, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
+import { useToast } from './ui/use-toast';
 
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar o status de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsLoggedIn(!!session);
-      }
-    );
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user || null);
+      setIsLoading(false);
 
-    // Verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-    });
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          setUser(session?.user || null);
+        }
+      );
 
-    // Adicionar listener de scroll
-    const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => {
-      subscription.unsubscribe();
-      window.removeEventListener("scroll", handleScroll);
-    };
+    checkUser();
   }, []);
 
-  return (
-    <nav className={`fixed w-full z-10 transition-all duration-300 ${isScrolled ? "bg-white shadow-md py-2" : "bg-white/80 backdrop-blur-md py-4"}`}>
-      <div className="container mx-auto px-4 flex justify-between items-center">
-        <Link to="/" className="flex items-center">
-          <span className="text-2xl font-bold text-blue-600">Movvi</span>
-        </Link>
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Erro ao sair",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Saiu com sucesso",
+      });
+    }
+  };
 
-        <div className="flex items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
-              <Home size={18} />
-              <span>Início</span>
-            </Button>
-          </Link>
-          
-          <Link to="/create-listing">
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-black flex items-center gap-2"
-              size="sm"
-            >
-              <Plus size={18} />
-              <span>Anunciar</span>
-            </Button>
-          </Link>
-          
-          {isLoggedIn ? (
-            <Link to="/profile">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <User size={20} />
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-10 bg-white shadow-md">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          <div>
+            <Link to="/" className="text-xl font-bold text-blue-600">
+              Imobiliária
+            </Link>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            {/* Botão de anunciar (azul com fonte preta) conforme solicitado */}
+            <Link to="/create-listing">
+              <Button className="bg-blue-500 hover:bg-blue-600 text-black">
+                Anunciar
               </Button>
             </Link>
-          ) : (
-            <Link to="/auth">
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
-                <LogIn size={18} />
-                <span>Entrar</span>
-              </Button>
-            </Link>
-          )}
+            
+            {isLoading ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      {user.email?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      Perfil
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/create-listing" className="cursor-pointer">
+                      Anunciar imóvel
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/auth">
+                <Button variant="outline">Entrar</Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </nav>
