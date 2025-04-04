@@ -1,19 +1,28 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogIn, User, Home } from "lucide-react";
+import { LogIn, User, Home, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const user = localStorage.getItem("user");
-    setIsLoggedIn(!!user);
+    // Verificar o status de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setIsLoggedIn(!!session);
+      }
+    );
 
-    // Add scroll event listener
+    // Verificar sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+
+    // Adicionar listener de scroll
     const handleScroll = () => {
       if (window.scrollY > 20) {
         setIsScrolled(true);
@@ -23,7 +32,10 @@ const Navbar = () => {
     };
 
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return (
@@ -38,6 +50,16 @@ const Navbar = () => {
             <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
               <Home size={18} />
               <span>Início</span>
+            </Button>
+          </Link>
+          
+          <Link to="/create-listing">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-black flex items-center gap-2"
+              size="sm"
+            >
+              <Plus size={18} />
+              <span>Anunciar</span>
             </Button>
           </Link>
           

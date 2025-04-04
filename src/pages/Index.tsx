@@ -1,18 +1,33 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
-import { sampleProperties } from "@/lib/data";
+import { getProperties, Property } from "@/services/properties";
 
 const Index = () => {
   const [filter, setFilter] = useState("all");
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProperties = filter === "all" 
-    ? sampleProperties 
-    : sampleProperties.filter(prop => 
-        filter === "rent" ? prop.isForRent : !prop.isForRent
-      );
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoading(true);
+      try {
+        const data = await getProperties({ 
+          type: filter === "all" ? "all" : filter === "rent" ? "rent" : "sale" 
+        });
+        setProperties(data);
+      } catch (error) {
+        console.error("Erro ao buscar imóveis:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, [filter]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -63,14 +78,39 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProperties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                {...property}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <p>Carregando imóveis...</p>
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="text-center py-10">
+              <h3 className="text-xl font-semibold mb-2">Nenhum imóvel encontrado</h3>
+              <p className="text-gray-600 mb-6">Seja o primeiro a anunciar um imóvel!</p>
+              <Link 
+                to="/create-listing"
+                className="bg-blue-600 text-black px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Anunciar agora
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {properties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  id={property.id}
+                  title={property.title}
+                  location={`${property.city}, ${property.state}`}
+                  price={property.price}
+                  imageUrl={property.mainImage || '/placeholder.svg'}
+                  beds={property.bedrooms}
+                  baths={property.bathrooms}
+                  squareMeters={property.area}
+                  isForRent={property.is_for_rent}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -81,12 +121,12 @@ const Index = () => {
           <p className="mb-8 max-w-2xl mx-auto">
             Cadastre-se gratuitamente e anuncie seu imóvel para milhares de pessoas interessadas em comprar ou alugar.
           </p>
-          <a 
-            href="/auth" 
+          <Link 
+            to="/auth" 
             className="bg-white text-blue-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors"
           >
             Anuncie agora
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -103,9 +143,9 @@ const Index = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4 text-white">Links Úteis</h3>
               <ul className="space-y-2">
-                <li><a href="/" className="text-gray-400 hover:text-white">Home</a></li>
-                <li><a href="/auth" className="text-gray-400 hover:text-white">Entrar</a></li>
-                <li><a href="/auth" className="text-gray-400 hover:text-white">Cadastrar</a></li>
+                <li><Link to="/" className="text-gray-400 hover:text-white">Home</Link></li>
+                <li><Link to="/auth" className="text-gray-400 hover:text-white">Entrar</Link></li>
+                <li><Link to="/auth" className="text-gray-400 hover:text-white">Cadastrar</Link></li>
               </ul>
             </div>
             <div>

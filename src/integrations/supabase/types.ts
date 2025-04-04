@@ -9,7 +9,128 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          is_realtor: boolean | null
+          name: string | null
+          phone: string | null
+          photo_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          is_realtor?: boolean | null
+          name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_realtor?: boolean | null
+          name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          address: string | null
+          area: number | null
+          bathrooms: number | null
+          bedrooms: number | null
+          city: string
+          contact_phone: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_for_rent: boolean
+          owner_id: string
+          price: number
+          property_type: string
+          state: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          area?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city: string
+          contact_phone?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_for_rent?: boolean
+          owner_id: string
+          price: number
+          property_type: string
+          state: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          area?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city?: string
+          contact_phone?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_for_rent?: boolean
+          owner_id?: string
+          price?: number
+          property_type?: string
+          state?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      property_images: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string
+          is_main: boolean | null
+          property_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url: string
+          is_main?: boolean | null
+          property_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          is_main?: boolean | null
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_images_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

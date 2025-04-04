@@ -6,13 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -26,52 +19,55 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Navbar from "@/components/Navbar";
+import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
 
-type User = {
-  id: string;
-  email: string;
-  name?: string;
-  phone?: string;
-  photo?: string;
-  isRealtor?: boolean;
-  profileCompleted?: boolean;
-};
-
-const Profile = () => {
-  const [user, setUser] = useState<User | null>(null);
+const ProfilePage = () => {
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [isRealtor, setIsRealtor] = useState(false);
   const [photoUrl, setPhotoUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showCreateListingDialog, setShowCreateListingDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get user from localStorage
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      navigate("/auth");
-      return;
-    }
+    const fetchProfile = async () => {
+      setIsLoading(true);
+      try {
+        const { profile, error } = await getProfile();
+        
+        if (error || !profile) {
+          console.error("Erro ao buscar perfil:", error);
+          navigate("/auth");
+          return;
+        }
 
-    const parsedUser = JSON.parse(storedUser) as User;
-    setUser(parsedUser);
-    
-    // Pre-populate form fields if available
-    if (parsedUser.name) setName(parsedUser.name);
-    if (parsedUser.phone) setPhone(parsedUser.phone);
-    if (parsedUser.photo) setPhotoUrl(parsedUser.photo);
-    if (parsedUser.isRealtor !== undefined) setIsRealtor(parsedUser.isRealtor);
-    
-    // If profile not completed, set to editing mode
-    if (!parsedUser.profileCompleted) {
-      setIsEditing(true);
-    }
+        setProfile(profile);
+        
+        // Preencher os campos do formulário
+        if (profile.name) setName(profile.name);
+        if (profile.phone) setPhone(profile.phone);
+        if (profile.photo_url) setPhotoUrl(profile.photo_url);
+        if (profile.is_realtor !== undefined) setIsRealtor(profile.is_realtor);
+        
+        // Se o perfil não estiver completo, iniciar em modo de edição
+        if (!profile.name || !profile.phone) {
+          setIsEditing(true);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar perfil:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, [navigate]);
 
-  const handleProfileUpdate = () => {
+  const handleProfileUpdate = async () => {
     if (!name || !phone) {
       toast({
         title: "Campos obrigatórios",
@@ -81,55 +77,99 @@ const Profile = () => {
       return;
     }
 
-    // Update user in state and localStorage
-    const updatedUser = {
-      ...user,
-      name,
-      phone,
-      isRealtor,
-      photo: photoUrl || undefined,
-      profileCompleted: true,
-    };
-
-    setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    
-    setIsEditing(false);
-    
-    toast({
-      title: "Perfil atualizado",
-      description: "As informações do seu perfil foram atualizadas com sucesso!",
-    });
-    
-    // If this is the first time completing the profile, show create listing dialog
-    if (!user?.profileCompleted) {
-      setShowCreateListingDialog(true);
+    setIsLoading(true);
+    try {
+      const { success } = await updateProfile({
+        name,
+        phone,
+        is_realtor: isRealtor,
+        photo_url: photoUrl || undefined,
+      });
+      
+      if (success) {
+        setProfile(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            name,
+            phone,
+            is_realtor: isRealtor,
+            photo_url: photoUrl || undefined,
+          };
+        });
+        
+        setIsEditing(false);
+        
+        toast({
+          title: "Perfil atualizado",
+          description: "As informações do seu perfil foram atualizadas com sucesso!",
+        });
+        
+        // Se for a primeira vez completando o perfil, mostrar diálogo de criação de anúncio
+        if (!profile?.name || !profile?.phone) {
+          setShowCreateListingDialog(true);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao atualizar seu perfil.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    toast({
-      title: "Logout realizado",
-      description: "Você saiu da sua conta.",
-    });
-    navigate("/");
+  const handleLogout = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // In a real application, you would upload the file to a server
-      // For this demo, we'll use a local URL
-      const url = URL.createObjectURL(file);
-      setPhotoUrl(url);
+      setIsLoading(true);
+      try {
+        const { url, error } = await uploadProfilePhoto(file);
+        
+        if (error || !url) {
+          throw error || new Error("Não foi possível fazer upload da foto");
+        }
+        
+        setPhotoUrl(url);
+        toast({
+          title: "Foto atualizada",
+          description: "Sua foto de perfil foi atualizada.",
+        });
+      } catch (error) {
+        console.error("Erro ao fazer upload da foto:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível fazer upload da foto.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  if (!user) {
+  if (isLoading && !profile) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p>Redirecionando...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container mx-auto py-28 px-4 flex items-center justify-center">
+          <p>Carregando perfil...</p>
+        </div>
       </div>
     );
   }
@@ -165,6 +205,7 @@ const Profile = () => {
                       accept="image/*" 
                       className="hidden" 
                       onChange={handlePhotoChange} 
+                      disabled={isLoading}
                     />
                   </div>
                 )}
@@ -176,7 +217,7 @@ const Profile = () => {
                   <Input
                     id="email"
                     type="email"
-                    value={user.email}
+                    value={profile?.email || ""}
                     disabled
                   />
                 </div>
@@ -187,7 +228,7 @@ const Profile = () => {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isLoading}
                     placeholder="Seu nome completo"
                   />
                 </div>
@@ -198,7 +239,7 @@ const Profile = () => {
                     id="phone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isLoading}
                     placeholder="(XX) XXXXX-XXXX"
                   />
                 </div>
@@ -208,7 +249,7 @@ const Profile = () => {
                     id="realtor"
                     checked={isRealtor}
                     onCheckedChange={setIsRealtor}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isLoading}
                   />
                   <Label htmlFor="realtor">Sou um corretor de imóveis</Label>
                 </div>
@@ -217,19 +258,21 @@ const Profile = () => {
             
             <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
               {isEditing ? (
-                <Button onClick={handleProfileUpdate}>
-                  Salvar Perfil
+                <Button onClick={handleProfileUpdate} disabled={isLoading}>
+                  {isLoading ? "Salvando..." : "Salvar Perfil"}
                 </Button>
               ) : (
                 <>
                   <Button 
                     variant="outline" 
                     onClick={() => setIsEditing(true)}
+                    disabled={isLoading}
                   >
                     Editar Perfil
                   </Button>
                   <Button 
                     onClick={() => navigate("/create-listing")}
+                    disabled={isLoading}
                   >
                     Anunciar Imóvel
                   </Button>
@@ -239,6 +282,7 @@ const Profile = () => {
                 variant="ghost"
                 onClick={handleLogout}
                 className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                disabled={isLoading}
               >
                 Sair
               </Button>
@@ -247,7 +291,7 @@ const Profile = () => {
         </Card>
       </div>
       
-      {/* Dialog for asking if user wants to create a listing */}
+      {/* Diálogo para perguntar se o usuário deseja criar um anúncio */}
       <AlertDialog open={showCreateListingDialog} onOpenChange={setShowCreateListingDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -268,4 +312,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default ProfilePage;

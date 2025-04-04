@@ -14,19 +14,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import Navbar from "@/components/Navbar";
+import { signIn, signUp } from "@/services/auth";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs
+    // Validar inputs
     if (!email || !password) {
       toast({
         title: "Campos obrigatórios",
@@ -45,25 +47,40 @@ const Auth = () => {
       return;
     }
     
-    // Simulate authentication
-    const user = {
-      id: "user123",
-      email,
-      profileCompleted: false,
-    };
+    setIsLoading(true);
     
-    // Store user in localStorage (in a real app, you'd handle tokens properly)
-    localStorage.setItem("user", JSON.stringify(user));
-    
-    toast({
-      title: isLogin ? "Login bem-sucedido" : "Cadastro realizado",
-      description: isLogin 
-        ? "Bem-vindo de volta!" 
-        : "Sua conta foi criada com sucesso.",
-    });
-    
-    // If login successful, redirect to profile page to complete profile
-    navigate("/profile");
+    try {
+      if (isLogin) {
+        const { success } = await signIn({ email, password });
+        if (success) {
+          toast({
+            title: "Login bem-sucedido",
+            description: "Bem-vindo de volta!",
+          });
+          navigate("/profile");
+        }
+      } else {
+        const { success } = await signUp({ email, password });
+        if (success) {
+          toast({
+            title: "Cadastro realizado",
+            description: "Sua conta foi criada com sucesso.",
+          });
+          // Tentar login após o cadastro
+          await signIn({ email, password });
+          navigate("/profile");
+        }
+      }
+    } catch (error) {
+      console.error("Erro de autenticação:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro durante a autenticação. Por favor, tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -113,20 +130,8 @@ const Auth = () => {
               )}
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full">
-                {isLogin ? "Entrar" : "Criar conta"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full flex items-center justify-center gap-2"
-              >
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google"
-                  className="w-5 h-5"
-                />
-                <span>{isLogin ? "Entrar" : "Cadastrar"} com Google</span>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Processando..." : isLogin ? "Entrar" : "Criar conta"}
               </Button>
               <p className="text-center text-sm text-gray-600">
                 {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}

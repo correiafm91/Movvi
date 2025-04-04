@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,42 +10,56 @@ import { useToast } from "@/components/ui/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import LocationSelector from "@/components/LocationSelector";
 import Navbar from "@/components/Navbar";
+import { getProfile } from "@/services/auth";
+import { createProperty } from "@/services/properties";
+import { supabase } from "@/integrations/supabase/client";
 
 const CreateListing = () => {
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contact, setContact] = useState("");
   const [location, setLocation] = useState({ state: "", city: "" });
+  const [propertyType, setPropertyType] = useState("Apartamento");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+  const [area, setArea] = useState("");
   const [listingType, setListingType] = useState<"rent" | "sale">("sale");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Get user from localStorage
-  const user = localStorage.getItem("user")
-    ? JSON.parse(localStorage.getItem("user") || "{}")
-    : null;
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        toast({
+          title: "Acesso restrito",
+          description: "Você precisa estar logado para anunciar um imóvel.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
 
-  if (!user) {
-    // Redirect to auth if no user is logged in
-    navigate("/auth");
-    return null;
-  }
+      // Buscar perfil do usuário para pré-preencher contato
+      const { profile } = await getProfile();
+      if (profile?.phone) {
+        setContact(profile.phone);
+      }
+    };
 
-  // Pre-populate contact with user's phone if available
-  useState(() => {
-    if (user?.phone) {
-      setContact(user.phone);
-    }
-  });
+    checkAuth();
+  }, [navigate, toast]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     
     if (!files) return;
     
-    // Limit to 10 images
+    // Limitar a 10 imagens
     if (photos.length + files.length > 10) {
       toast({
         title: "Limite de fotos",
@@ -55,28 +69,36 @@ const CreateListing = () => {
       return;
     }
     
-    // In a real app, we would upload these to a server
-    // For demo purposes, we'll use local URLs
     const newPhotos = [...photos];
+    const newPreviews = [...photoPreviews];
     
     Array.from(files).forEach((file) => {
-      const url = URL.createObjectURL(file);
-      newPhotos.push(url);
+      newPhotos.push(file);
+      newPreviews.push(URL.createObjectURL(file));
     });
     
     setPhotos(newPhotos);
+    setPhotoPreviews(newPreviews);
   };
 
   const removePhoto = (index: number) => {
     const newPhotos = [...photos];
+    const newPreviews = [...photoPreviews];
+    
+    // Liberar URL do objeto
+    URL.revokeObjectURL(newPreviews[index]);
+    
     newPhotos.splice(index, 1);
+    newPreviews.splice(index, 1);
+    
     setPhotos(newPhotos);
+    setPhotoPreviews(newPreviews);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
+    // Validar formulário
     if (!title || !description || !price || !contact || !location.state || !location.city || photos.length === 0) {
       toast({
         title: "Campos obrigatórios",
@@ -86,14 +108,68 @@ const CreateListing = () => {
       return;
     }
     
-    // In a real application, we would send this data to a backend
-    toast({
-      title: "Anúncio criado",
-      description: "Seu imóvel foi anunciado com sucesso!",
-    });
+    setIsLoading(true);
     
-    // Redirect to home page
-    navigate("/");
+    try {
+      const propertyData = {
+        title,
+        description,
+        price: Number(price.replace(/\D/g, ''')) / 100, // Converter para número
+        state: location.state,
+        city: location.city,
+        property_type: propertyType,
+        bedrooms: bedrooms ? parseInt(bedrooms) : undefined,
+        bathrooms: bathrooms ? parseInt(bathrooms) : undefined,
+        area: area ? parseFloat(area) : undefined,
+        is_for_rent: listingType === 'rent',
+        contact_phone: contact,
+      };
+
+      const { success, data, error } = await createProperty(propertyData, photos);
+      
+      if (success && data) {
+        toast({
+          title: "Anúncio criado",
+          description: "Seu imóvel foi anunciado com sucesso!",
+        });
+        
+        // Redirecionar para a página inicial
+        navigate("/");
+      } else {
+        throw error || new Error("Erro ao criar anúncio");
+      }
+    } catch (error) {
+      console.error("Erro ao criar anúncio:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao criar o anúncio. Por favor, tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função para formatar o preço
+  const formatPrice = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    
+    // Converter para centavos e depois formatar
+    const cents = parseInt(numbers);
+    if (isNaN(cents)) return '';
+    
+    // Formatar o número com separadores
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    }).format(cents / 100);
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formattedValue = formatPrice(value);
+    setPrice(formattedValue);
   };
 
   return (
@@ -106,11 +182,11 @@ const CreateListing = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Photo upload */}
+              {/* Upload de fotos */}
               <div className="space-y-2">
                 <Label htmlFor="photos">Fotos do imóvel</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {photos.map((photo, index) => (
+                  {photoPreviews.map((photo, index) => (
                     <div 
                       key={index} 
                       className="relative aspect-square rounded overflow-hidden group"
@@ -148,6 +224,7 @@ const CreateListing = () => {
                         multiple
                         className="hidden"
                         onChange={handlePhotoUpload}
+                        disabled={isLoading}
                       />
                     </div>
                   )}
@@ -157,7 +234,7 @@ const CreateListing = () => {
                 </p>
               </div>
               
-              {/* Title */}
+              {/* Título */}
               <div className="space-y-2">
                 <Label htmlFor="title">Título do anúncio</Label>
                 <Input
@@ -165,10 +242,11 @@ const CreateListing = () => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Apartamento 2 quartos no Centro"
+                  disabled={isLoading}
                 />
               </div>
               
-              {/* Description */}
+              {/* Descrição */}
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição detalhada</Label>
                 <Textarea
@@ -177,10 +255,67 @@ const CreateListing = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Descreva o imóvel em detalhes..."
                   rows={5}
+                  disabled={isLoading}
                 />
               </div>
               
-              {/* Type of listing */}
+              {/* Tipo do imóvel */}
+              <div className="space-y-2">
+                <Label htmlFor="propertyType">Tipo do imóvel</Label>
+                <select
+                  id="propertyType"
+                  value={propertyType}
+                  onChange={(e) => setPropertyType(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  <option value="Apartamento">Apartamento</option>
+                  <option value="Casa">Casa</option>
+                  <option value="Kitnet">Kitnet</option>
+                  <option value="Terreno">Terreno</option>
+                  <option value="Comercial">Comercial</option>
+                  <option value="Rural">Rural</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+              
+              {/* Detalhes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bedrooms">Quartos</Label>
+                  <Input
+                    id="bedrooms"
+                    type="number"
+                    min="0"
+                    value={bedrooms}
+                    onChange={(e) => setBedrooms(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bathrooms">Banheiros</Label>
+                  <Input
+                    id="bathrooms"
+                    type="number"
+                    min="0"
+                    value={bathrooms}
+                    onChange={(e) => setBathrooms(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="area">Área (m²)</Label>
+                  <Input
+                    id="area"
+                    type="text"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value.replace(/[^\d.,]/g, ''))}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+              
+              {/* Tipo de anúncio */}
               <div className="space-y-2">
                 <Label>Tipo de anúncio</Label>
                 <RadioGroup
@@ -189,42 +324,37 @@ const CreateListing = () => {
                   className="flex space-x-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="sale" id="sale" />
+                    <RadioGroupItem value="sale" id="sale" disabled={isLoading} />
                     <Label htmlFor="sale">Venda</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="rent" id="rent" />
+                    <RadioGroupItem value="rent" id="rent" disabled={isLoading} />
                     <Label htmlFor="rent">Aluguel</Label>
                   </div>
                 </RadioGroup>
               </div>
               
-              {/* Price */}
+              {/* Preço */}
               <div className="space-y-2">
                 <Label htmlFor="price">
                   Preço {listingType === "rent" ? "(mensal)" : ""}
                 </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                    R$
-                  </span>
-                  <Input
-                    id="price"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="0,00"
-                    className="pl-10"
-                  />
-                </div>
+                <Input
+                  id="price"
+                  value={price}
+                  onChange={handlePriceChange}
+                  placeholder="R$ 0,00"
+                  disabled={isLoading}
+                />
               </div>
               
-              {/* Location */}
+              {/* Localização */}
               <div className="space-y-2">
                 <Label>Localização</Label>
-                <LocationSelector onLocationChange={setLocation} />
+                <LocationSelector onLocationChange={setLocation} disabled={isLoading} />
               </div>
               
-              {/* Contact */}
+              {/* Contato */}
               <div className="space-y-2">
                 <Label htmlFor="contact">Telefone para contato</Label>
                 <Input
@@ -232,11 +362,12 @@ const CreateListing = () => {
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                   placeholder="(XX) XXXXX-XXXX"
+                  disabled={isLoading}
                 />
               </div>
               
-              <Button type="submit" className="w-full">
-                Publicar Anúncio
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Publicando..." : "Publicar Anúncio"}
               </Button>
             </form>
           </CardContent>
