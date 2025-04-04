@@ -114,7 +114,7 @@ const CreateListing = () => {
       const propertyData = {
         title,
         description,
-        price: Number(price.replace(/\D/g, ''')) / 100, // Converter para número
+        price: Number(price.replace(/\D/g, '')) / 100, // Converter para número
         state: location.state,
         city: location.city,
         property_type: propertyType,
