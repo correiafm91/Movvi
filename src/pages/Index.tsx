@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -9,6 +10,10 @@ const Index = () => {
   const [filter, setFilter] = useState("all");
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useState({
+    query: "",
+    location: { state: "", city: "" }
+  });
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -28,6 +33,38 @@ const Index = () => {
     fetchProperties();
   }, [filter]);
 
+  const handleSearch = (query: string, location: { state: string; city: string }) => {
+    setSearchParams({ query, location });
+    
+    // Filter properties based on search parameters
+    let filteredProperties = properties;
+    
+    // Filter by location
+    if (location.state) {
+      filteredProperties = filteredProperties.filter(prop => 
+        prop.state.toLowerCase() === location.state.toLowerCase()
+      );
+    }
+    
+    if (location.city) {
+      filteredProperties = filteredProperties.filter(prop => 
+        prop.city.toLowerCase() === location.city.toLowerCase()
+      );
+    }
+    
+    // Filter by query text (search in title, description, property_type)
+    if (query) {
+      const searchQuery = query.toLowerCase();
+      filteredProperties = filteredProperties.filter(prop => 
+        prop.title.toLowerCase().includes(searchQuery) || 
+        (prop.description && prop.description.toLowerCase().includes(searchQuery)) ||
+        prop.property_type.toLowerCase().includes(searchQuery)
+      );
+    }
+    
+    setProperties(filteredProperties);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -45,7 +82,7 @@ const Index = () => {
           </div>
           
           <div className="mt-8">
-            <SearchBar />
+            <SearchBar onSearch={handleSearch} />
           </div>
         </div>
       </section>
@@ -152,8 +189,8 @@ const PropertyList = ({ properties }: { properties: Property[] }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {properties.length > 0 ? (
         properties.map((property) => {
-          const mainImage = property.property_images?.find(img => img.is_main)?.image_url || 
-                           property.property_images?.[0]?.image_url || 
+          const mainImage = property.images?.find(img => img.is_main)?.image_url || 
+                           property.images?.[0]?.image_url || 
                            '/placeholder.svg';
           
           return (
@@ -163,12 +200,11 @@ const PropertyList = ({ properties }: { properties: Property[] }) => {
               title={property.title}
               price={property.price}
               location={`${property.city}, ${property.state}`}
-              bedrooms={property.bedrooms}
-              bathrooms={property.bathrooms}
-              area={property.area}
+              beds={property.bedrooms}
+              baths={property.bathrooms}
+              squareMeters={property.area}
               imageUrl={mainImage}
               isForRent={property.is_for_rent}
-              onClick={() => console.log(`Visualizando imóvel ${property.id}`)}
             />
           );
         })

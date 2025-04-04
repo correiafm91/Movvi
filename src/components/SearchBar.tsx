@@ -5,14 +5,20 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import LocationSelector from './LocationSelector';
 
-const SearchBar = () => {
+interface SearchBarProps {
+  onSearch?: (query: string, location: { state: string; city: string }) => void;
+}
+
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [location, setLocation] = useState({ state: '', city: '' });
   const [query, setQuery] = useState('');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Buscando por:", { query, location });
-    // Implemente a busca aqui
+    if (onSearch) {
+      onSearch(query, location);
+    }
   };
 
   return (
