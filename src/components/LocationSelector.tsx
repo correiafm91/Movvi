@@ -6,12 +6,19 @@ import { brazilianStates } from '@/lib/data';
 interface LocationSelectorProps {
   onLocationChange: (location: { state: string; city: string }) => void;
   disabled?: boolean;
+  initialState?: string;
+  initialCity?: string;
 }
 
-const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationChange, disabled }) => {
-  const [selectedState, setSelectedState] = useState("");
+const LocationSelector: React.FC<LocationSelectorProps> = ({ 
+  onLocationChange, 
+  disabled,
+  initialState,
+  initialCity
+}) => {
+  const [selectedState, setSelectedState] = useState(initialState || "");
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedCity, setSelectedCity] = useState(initialCity || "");
 
   useEffect(() => {
     if (selectedState) {
@@ -19,15 +26,18 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationChange, d
       const stateData = brazilianStates.find(state => state.name === selectedState);
       if (stateData) {
         setAvailableCities(stateData.mainCities);
+        // If we have an initialCity and we just loaded cities, select it
+        if (initialCity && selectedCity === "" && stateData.mainCities.includes(initialCity)) {
+          setSelectedCity(initialCity);
+        }
       } else {
         setAvailableCities([]);
       }
-      setSelectedCity("");
     } else {
       setAvailableCities([]);
       setSelectedCity("");
     }
-  }, [selectedState]);
+  }, [selectedState, initialCity, selectedCity]);
 
   useEffect(() => {
     onLocationChange({
