@@ -32,7 +32,8 @@ import {
   ChevronLeft,
   Mail,
   MessageSquare,
-  Copy
+  Copy,
+  User
 } from "lucide-react";
 import { getPropertyById, Property } from "@/services/properties";
 import { getRealtorInfo } from "@/services/auth";
@@ -367,11 +368,21 @@ const PropertyDetails = () => {
                     </div>
                   </CardContent>
                   {property.contact_phone && (
-                    <CardFooter className="border-t pt-4">
+                    <CardFooter className="border-t pt-4 flex flex-col items-start gap-2">
                       <p className="text-sm flex items-center gap-2">
                         <Phone size={14} className="text-gray-500" />
                         {property.contact_phone}
                       </p>
+                      
+                      {owner.is_realtor && (
+                        <Button 
+                          variant="default" 
+                          className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => navigate(`/realtor/${property.owner_id}`)}
+                        >
+                          <User size={16} className="mr-1" /> Mais imóveis deste corretor
+                        </Button>
+                      )}
                     </CardFooter>
                   )}
                 </Card>

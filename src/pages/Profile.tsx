@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,9 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import MyProperties from "@/components/MyProperties";
 import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
+import { Award, ExternalLink } from "lucide-react";
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -34,6 +42,7 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [showCreateListingDialog, setShowCreateListingDialog] = useState(false);
+  const [showSponsorDialog, setShowSponsorDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -51,14 +60,12 @@ const ProfilePage = () => {
 
         setProfile(profile);
         
-        // Preencher os campos do formulário
         if (profile.name) setName(profile.name);
         if (profile.phone) setPhone(profile.phone);
         if (profile.photo_url) setPhotoUrl(profile.photo_url);
         if (profile.is_realtor !== undefined) setIsRealtor(profile.is_realtor);
         if (profile.creci_code) setCreciCode(profile.creci_code);
         
-        // Se o perfil não estiver completo, iniciar em modo de edição
         if (!profile.name || !profile.phone) {
           setIsEditing(true);
         }
@@ -82,7 +89,6 @@ const ProfilePage = () => {
       return;
     }
 
-    // Se é corretor, o código CRECI é obrigatório
     if (isRealtor && !creciCode) {
       toast({
         title: "Código CRECI obrigatório",
@@ -122,7 +128,6 @@ const ProfilePage = () => {
           description: "As informações do seu perfil foram atualizadas com sucesso!",
         });
         
-        // Se for a primeira vez completando o perfil, mostrar diálogo de criação de anúncio
         if (!profile?.name || !profile?.phone) {
           setShowCreateListingDialog(true);
         }
@@ -178,6 +183,15 @@ const ProfilePage = () => {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleSponsorClick = () => {
+    setShowSponsorDialog(true);
+  };
+
+  const handleSponsorRedirect = () => {
+    window.open("https://form.respondi.app/pgdUo1tO", "_blank");
+    setShowSponsorDialog(false);
   };
 
   if (isLoading && !profile) {
@@ -333,7 +347,19 @@ const ProfilePage = () => {
             
             <TabsContent value="properties" className="animate-fade-in">
               <Card>
-                <CardContent className="pt-6">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Meus Imóveis</CardTitle>
+                  {isRealtor && (
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center gap-2"
+                      onClick={handleSponsorClick}
+                    >
+                      <Award size={16} className="text-blue-600" /> Seja patrocinado
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-0">
                   <MyProperties />
                 </CardContent>
               </Card>
@@ -342,7 +368,6 @@ const ProfilePage = () => {
         </div>
       </div>
       
-      {/* Diálogo para perguntar se o usuário deseja criar um anúncio */}
       <AlertDialog open={showCreateListingDialog} onOpenChange={setShowCreateListingDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -359,6 +384,64 @@ const ProfilePage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showSponsorDialog} onOpenChange={setShowSponsorDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Ganhe visibilidade. Aumente suas vendas.
+            </DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Tenha seu perfil em destaque nas principais áreas da plataforma Movvi. 
+              Conquiste a confiança dos clientes e aumente suas chances de fechar negócio com mais rapidez.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <h3 className="text-lg font-semibold mb-4">Como funciona?</h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-start gap-2">
+                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  1
+                </div>
+                <div>
+                  <h4 className="font-medium">Preencha o formulário Movvi</h4>
+                  <p className="text-sm text-gray-600">Envie seus dados e manifeste seu interesse.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-medium">Envie suas informações completas</h4>
+                  <p className="text-sm text-gray-600">Nossa equipe analisará seu perfil para garantir a qualidade dos destaques.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-medium">Seja um corretor patrocinado</h4>
+                  <p className="text-sm text-gray-600">Com o selo de destaque, seu perfil será priorizado em áreas estratégicas da plataforma.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleSponsorRedirect}
+            >
+              Tornar-me patrocinado <ExternalLink size={16} className="ml-1" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
