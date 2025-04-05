@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Navbar from "@/components/Navbar";
+import MyProperties from "@/components/MyProperties";
 import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
 
 const ProfilePage = () => {
@@ -26,9 +28,11 @@ const ProfilePage = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [isRealtor, setIsRealtor] = useState(false);
+  const [creciCode, setCreciCode] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
   const [showCreateListingDialog, setShowCreateListingDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -52,6 +56,7 @@ const ProfilePage = () => {
         if (profile.phone) setPhone(profile.phone);
         if (profile.photo_url) setPhotoUrl(profile.photo_url);
         if (profile.is_realtor !== undefined) setIsRealtor(profile.is_realtor);
+        if (profile.creci_code) setCreciCode(profile.creci_code);
         
         // Se o perfil não estiver completo, iniciar em modo de edição
         if (!profile.name || !profile.phone) {
@@ -77,12 +82,23 @@ const ProfilePage = () => {
       return;
     }
 
+    // Se é corretor, o código CRECI é obrigatório
+    if (isRealtor && !creciCode) {
+      toast({
+        title: "Código CRECI obrigatório",
+        description: "Como corretor, você precisa informar seu código CRECI.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { success } = await updateProfile({
         name,
         phone,
         is_realtor: isRealtor,
+        creci_code: isRealtor ? creciCode : null,
         photo_url: photoUrl || undefined,
       });
       
@@ -94,6 +110,7 @@ const ProfilePage = () => {
             name,
             phone,
             is_realtor: isRealtor,
+            creci_code: isRealtor ? creciCode : null,
             photo_url: photoUrl || undefined,
           };
         });
@@ -175,120 +192,154 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 animate-fade-in">
       <Navbar />
       <div className="container mx-auto py-28 px-4">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-2xl">Perfil do Usuário</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
-              <div className="flex flex-col items-center gap-2">
-                <Avatar className="w-28 h-28 border-2 border-gray-200">
-                  <AvatarImage src={photoUrl} />
-                  <AvatarFallback className="text-2xl">
-                    {name ? name.charAt(0).toUpperCase() : "U"}
-                  </AvatarFallback>
-                </Avatar>
-                {isEditing && (
-                  <div>
-                    <Label 
-                      htmlFor="photo" 
-                      className="cursor-pointer text-sm text-blue-600 hover:underline"
-                    >
-                      Alterar foto
-                    </Label>
-                    <Input 
-                      id="photo" 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={handlePhotoChange} 
-                      disabled={isLoading}
-                    />
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex-1 space-y-4 w-full">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile?.email || ""}
-                    disabled
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome completo</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={!isEditing || isLoading}
-                    placeholder="Seu nome completo"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={!isEditing || isLoading}
-                    placeholder="(XX) XXXXX-XXXX"
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2 pt-2">
-                  <Switch
-                    id="realtor"
-                    checked={isRealtor}
-                    onCheckedChange={setIsRealtor}
-                    disabled={!isEditing || isLoading}
-                  />
-                  <Label htmlFor="realtor">Sou um corretor de imóveis</Label>
-                </div>
-              </div>
-            </div>
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8 text-center md:text-left">Minha Conta</h1>
+          
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="profile">Perfil</TabsTrigger>
+              <TabsTrigger value="properties">Meus Imóveis</TabsTrigger>
+            </TabsList>
             
-            <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
-              {isEditing ? (
-                <Button onClick={handleProfileUpdate} disabled={isLoading}>
-                  {isLoading ? "Salvando..." : "Salvar Perfil"}
-                </Button>
-              ) : (
-                <>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsEditing(true)}
-                    disabled={isLoading}
-                  >
-                    Editar Perfil
-                  </Button>
-                  <Button 
-                    onClick={() => navigate("/create-listing")}
-                    disabled={isLoading}
-                  >
-                    Anunciar Imóvel
-                  </Button>
-                </>
-              )}
-              <Button 
-                variant="ghost"
-                onClick={handleLogout}
-                className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                disabled={isLoading}
-              >
-                Sair
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            <TabsContent value="profile" className="animate-fade-in">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl">Perfil do Usuário</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar className="w-28 h-28 border-2 border-gray-200">
+                        <AvatarImage src={photoUrl} />
+                        <AvatarFallback className="text-2xl">
+                          {name ? name.charAt(0).toUpperCase() : "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isEditing && (
+                        <div>
+                          <Label 
+                            htmlFor="photo" 
+                            className="cursor-pointer text-sm text-blue-600 hover:underline"
+                          >
+                            Alterar foto
+                          </Label>
+                          <Input 
+                            id="photo" 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handlePhotoChange} 
+                            disabled={isLoading}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 space-y-4 w-full">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">E-mail</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={profile?.email || ""}
+                          disabled
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome completo</Label>
+                        <Input
+                          id="name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          disabled={!isEditing || isLoading}
+                          placeholder="Seu nome completo"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <Input
+                          id="phone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          disabled={!isEditing || isLoading}
+                          placeholder="(XX) XXXXX-XXXX"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 pt-2">
+                        <Switch
+                          id="realtor"
+                          checked={isRealtor}
+                          onCheckedChange={setIsRealtor}
+                          disabled={!isEditing || isLoading}
+                        />
+                        <Label htmlFor="realtor">Sou um corretor de imóveis</Label>
+                      </div>
+                      
+                      {isRealtor && (
+                        <div className="space-y-2 pt-2">
+                          <Label htmlFor="creci">Código CRECI</Label>
+                          <Input
+                            id="creci"
+                            value={creciCode}
+                            onChange={(e) => setCreciCode(e.target.value)}
+                            disabled={!isEditing || isLoading}
+                            placeholder="Seu código CRECI"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
+                    {isEditing ? (
+                      <Button onClick={handleProfileUpdate} disabled={isLoading}>
+                        {isLoading ? "Salvando..." : "Salvar Perfil"}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIsEditing(true)}
+                          disabled={isLoading}
+                        >
+                          Editar Perfil
+                        </Button>
+                        <Button 
+                          onClick={() => navigate("/create-listing")}
+                          disabled={isLoading}
+                        >
+                          Anunciar Imóvel
+                        </Button>
+                      </>
+                    )}
+                    <Button 
+                      variant="ghost"
+                      onClick={handleLogout}
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      disabled={isLoading}
+                    >
+                      Sair
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="properties" className="animate-fade-in">
+              <Card>
+                <CardContent className="pt-6">
+                  <MyProperties />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
       
       {/* Diálogo para perguntar se o usuário deseja criar um anúncio */}

@@ -44,7 +44,16 @@ export interface NewProperty {
   contact_phone?: string;
 }
 
-export async function getProperties({ type = 'all' }: { type?: 'all' | 'rent' | 'sale' } = {}) {
+export interface PropertySearchParams {
+  type?: 'all' | 'rent' | 'sale';
+  state?: string;
+  city?: string;
+  query?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}
+
+export async function getProperties(params: PropertySearchParams = {}) {
   let query = supabase
     .from('properties')
     .select(`
@@ -52,12 +61,32 @@ export async function getProperties({ type = 'all' }: { type?: 'all' | 'rent' | 
       property_images(*)
     `);
   
-  if (type === 'rent') {
+  // Filter by rent/sale type
+  if (params.type === 'rent') {
     query = query.eq('is_for_rent', true);
-  } else if (type === 'sale') {
+  } else if (params.type === 'sale') {
     query = query.eq('is_for_rent', false);
   }
 
+  // Filter by location
+  if (params.state) {
+    query = query.eq('state', params.state);
+  }
+  
+  if (params.city) {
+    query = query.eq('city', params.city);
+  }
+
+  // Filter by price range
+  if (params.minPrice !== undefined) {
+    query = query.gte('price', params.minPrice);
+  }
+
+  if (params.maxPrice !== undefined) {
+    query = query.lte('price', params.maxPrice);
+  }
+  
+  // Search by query text (we need to implement this on the client side)
   const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
@@ -70,6 +99,63 @@ export async function getProperties({ type = 'all' }: { type?: 'all' | 'rent' | 
   }
 
   // Formatar os dados para o formato esperado pelo frontend
+  const formattedProperties = data.map((property: any) => {
+    const images = property.property_images || [];
+    
+    return {
+      ...property,
+      images,
+      mainImage: images.find((img: PropertyImage) => img.is_main)?.image_url || 
+                (images.length > 0 ? images[0].image_url : '/placeholder.svg')
+    };
+  });
+  
+  // Filter by search query if provided (client-side)
+  if (params.query) {
+    const searchQuery = params.query.toLowerCase();
+    return formattedProperties.filter((property: Property) => 
+      property.title.toLowerCase().includes(searchQuery) || 
+      (property.description && property.description.toLowerCase().includes(searchQuery)) ||
+      property.property_type.toLowerCase().includes(searchQuery) ||
+      property.city.toLowerCase().includes(searchQuery) ||
+      property.state.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  return formattedProperties;
+}
+
+export async function getPropertiesByOwner() {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    toast({
+      title: "Erro de autenticação",
+      description: "Você precisa estar logado para ver seus imóveis.",
+      variant: "destructive",
+    });
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('properties')
+    .select(`
+      *,
+      property_images(*)
+    `)
+    .eq('owner_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    toast({
+      title: "Erro ao buscar imóveis",
+      description: error.message,
+      variant: "destructive",
+    });
+    return [];
+  }
+
+  // Formatar os dados
   const formattedProperties = data.map((property: any) => {
     const images = property.property_images || [];
     
@@ -193,7 +279,101 @@ export async function createProperty(propertyData: NewProperty, images: File[]) 
   };
 }
 
+export async function updateProperty(id: string, propertyData: Partial<NewProperty>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    toast({
+      title: "Erro",
+      description: "Você precisa estar logado para editar um anúncio",
+      variant: "destructive",
+    });
+    return { success: false, error: new Error("Usuário não autenticado") };
+  }
+
+  // Verificar se o imóvel pertence ao usuário
+  const { data: propertyCheck, error: checkError } = await supabase
+    .from('properties')
+    .select('owner_id')
+    .eq('id', id)
+    .single();
+
+  if (checkError || !propertyCheck) {
+    toast({
+      title: "Erro",
+      description: "Imóvel não encontrado",
+      variant: "destructive",
+    });
+    return { success: false, error: checkError || new Error("Imóvel não encontrado") };
+  }
+
+  if (propertyCheck.owner_id !== user.id) {
+    toast({
+      title: "Erro",
+      description: "Você não tem permissão para editar este imóvel",
+      variant: "destructive",
+    });
+    return { success: false, error: new Error("Permissão negada") };
+  }
+
+  // Atualizar o imóvel
+  const { data, error } = await supabase
+    .from('properties')
+    .update({ ...propertyData, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    toast({
+      title: "Erro ao atualizar anúncio",
+      description: error.message,
+      variant: "destructive",
+    });
+    return { success: false, error };
+  }
+
+  return { success: true, data };
+}
+
 export async function deleteProperty(propertyId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    toast({
+      title: "Erro",
+      description: "Você precisa estar logado para excluir um anúncio",
+      variant: "destructive",
+    });
+    return { success: false, error: new Error("Usuário não autenticado") };
+  }
+
+  // Verificar se o imóvel pertence ao usuário
+  const { data: propertyCheck, error: checkError } = await supabase
+    .from('properties')
+    .select('owner_id')
+    .eq('id', propertyId)
+    .single();
+
+  if (checkError || !propertyCheck) {
+    toast({
+      title: "Erro",
+      description: "Imóvel não encontrado",
+      variant: "destructive",
+    });
+    return { success: false, error: checkError || new Error("Imóvel não encontrado") };
+  }
+
+  if (propertyCheck.owner_id !== user.id) {
+    toast({
+      title: "Erro",
+      description: "Você não tem permissão para excluir este imóvel",
+      variant: "destructive",
+    });
+    return { success: false, error: new Error("Permissão negada") };
+  }
+
+  // Excluir o imóvel
   const { error } = await supabase
     .from('properties')
     .delete()

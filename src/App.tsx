@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import CreateListing from "./pages/CreateListing";
 import PropertyDetails from "./pages/PropertyDetails";
+import EditProperty from "./pages/EditProperty";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/create-listing" element={<CreateListing />} />
           <Route path="/property/:id" element={<PropertyDetails />} />
+          <Route path="/edit-property/:id" element={<EditProperty />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

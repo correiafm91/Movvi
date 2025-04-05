@@ -4,25 +4,68 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
-import { getProperties, Property } from "@/services/properties";
+import { 
+  getProperties, 
+  Property, 
+  PropertySearchParams 
+} from "@/services/properties";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const [filter, setFilter] = useState("all");
   const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useState({
     query: "",
-    location: { state: "", city: "" }
+    location: { state: "", city: "" },
+    priceRange: { min: null as number | null, max: null as number | null }
   });
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchProperties = async () => {
       setLoading(true);
       try {
-        const data = await getProperties({ 
-          type: filter === "all" ? "all" : filter === "rent" ? "rent" : "sale" 
-        });
-        setProperties(data);
+        const params: PropertySearchParams = { 
+          type: filter === "all" ? "all" : filter === "rent" ? "rent" : "sale",
+        };
+        
+        // Add location filters if set
+        if (searchParams.location.state) {
+          params.state = searchParams.location.state;
+        }
+        
+        if (searchParams.location.city) {
+          params.city = searchParams.location.city;
+        }
+        
+        // Add price range filters if set
+        if (searchParams.priceRange.min !== null) {
+          params.minPrice = searchParams.priceRange.min;
+        }
+        
+        if (searchParams.priceRange.max !== null) {
+          params.maxPrice = searchParams.priceRange.max;
+        }
+        
+        const data = await getProperties(params);
+        
+        // Apply text search if query is set
+        if (searchParams.query) {
+          const filtered = data.filter(prop => 
+            prop.title.toLowerCase().includes(searchParams.query.toLowerCase()) || 
+            (prop.description && prop.description.toLowerCase().includes(searchParams.query.toLowerCase())) ||
+            prop.property_type.toLowerCase().includes(searchParams.query.toLowerCase()) ||
+            prop.city.toLowerCase().includes(searchParams.query.toLowerCase()) ||
+            prop.state.toLowerCase().includes(searchParams.query.toLowerCase())
+          );
+          setProperties(data);
+          setFilteredProperties(filtered);
+        } else {
+          setProperties(data);
+          setFilteredProperties(data);
+        }
       } catch (error) {
         console.error("Erro ao buscar imóveis:", error);
       } finally {
@@ -31,38 +74,14 @@ const Index = () => {
     };
 
     fetchProperties();
-  }, [filter]);
+  }, [filter, searchParams]);
 
-  const handleSearch = (query: string, location: { state: string; city: string }) => {
-    setSearchParams({ query, location });
-    
-    // Filter properties based on search parameters
-    let filteredProperties = properties;
-    
-    // Filter by location
-    if (location.state) {
-      filteredProperties = filteredProperties.filter(prop => 
-        prop.state.toLowerCase() === location.state.toLowerCase()
-      );
-    }
-    
-    if (location.city) {
-      filteredProperties = filteredProperties.filter(prop => 
-        prop.city.toLowerCase() === location.city.toLowerCase()
-      );
-    }
-    
-    // Filter by query text (search in title, description, property_type)
-    if (query) {
-      const searchQuery = query.toLowerCase();
-      filteredProperties = filteredProperties.filter(prop => 
-        prop.title.toLowerCase().includes(searchQuery) || 
-        (prop.description && prop.description.toLowerCase().includes(searchQuery)) ||
-        prop.property_type.toLowerCase().includes(searchQuery)
-      );
-    }
-    
-    setProperties(filteredProperties);
+  const handleSearch = (
+    query: string, 
+    location: { state: string; city: string },
+    priceRange: { min: number | null; max: number | null }
+  ) => {
+    setSearchParams({ query, location, priceRange });
   };
 
   return (
@@ -70,7 +89,7 @@ const Index = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="pt-28 pb-16 px-4">
+      <section className="pt-28 pb-16 px-4 animate-fade-in">
         <div className="container mx-auto">
           <div className="text-center mb-10">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -90,23 +109,23 @@ const Index = () => {
       {/* Properties Section */}
       <section className="py-12 px-4 bg-gray-50">
         <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold">Imóveis em destaque</h2>
-            <div className="flex space-x-2 border rounded-lg overflow-hidden">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold mb-4 sm:mb-0">Imóveis em destaque</h2>
+            <div className="flex space-x-2 border rounded-lg overflow-hidden w-full sm:w-auto">
               <button
-                className={`px-4 py-2 text-sm ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
                 onClick={() => setFilter('all')}
               >
                 Todos
               </button>
               <button
-                className={`px-4 py-2 text-sm ${filter === 'buy' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'buy' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
                 onClick={() => setFilter('buy')}
               >
                 Comprar
               </button>
               <button
-                className={`px-4 py-2 text-sm ${filter === 'rent' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'rent' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
                 onClick={() => setFilter('rent')}
               >
                 Alugar
@@ -118,8 +137,8 @@ const Index = () => {
             <div className="flex justify-center items-center h-40">
               <p>Carregando imóveis...</p>
             </div>
-          ) : properties.length === 0 ? (
-            <div className="text-center py-10">
+          ) : filteredProperties.length === 0 ? (
+            <div className="text-center py-10 animate-fade-in">
               <h3 className="text-xl font-semibold mb-2">Nenhum imóvel encontrado</h3>
               <p className="text-gray-600 mb-6">Seja o primeiro a anunciar um imóvel!</p>
               <Link 
@@ -130,7 +149,7 @@ const Index = () => {
               </Link>
             </div>
           ) : (
-            <PropertyList properties={properties} />
+            <PropertyList properties={filteredProperties} />
           )}
         </div>
       </section>
@@ -154,7 +173,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-gray-800 text-gray-200 py-12 px-4">
         <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <h3 className="text-xl font-bold mb-4 text-white">Movvi</h3>
               <p className="text-gray-400">
@@ -168,11 +187,6 @@ const Index = () => {
                 <li><Link to="/auth" className="text-gray-400 hover:text-white">Entrar</Link></li>
                 <li><Link to="/auth" className="text-gray-400 hover:text-white">Cadastrar</Link></li>
               </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-white">Contato</h3>
-              <p className="text-gray-400">contato@movvi.com</p>
-              <p className="text-gray-400">+55 (11) 99999-9999</p>
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
@@ -194,18 +208,19 @@ const PropertyList = ({ properties }: { properties: Property[] }) => {
                            '/placeholder.svg';
           
           return (
-            <PropertyCard
-              key={property.id}
-              id={property.id}
-              title={property.title}
-              price={property.price}
-              location={`${property.city}, ${property.state}`}
-              beds={property.bedrooms}
-              baths={property.bathrooms}
-              squareMeters={property.area}
-              imageUrl={mainImage}
-              isForRent={property.is_for_rent}
-            />
+            <div key={property.id} className="animate-fade-in">
+              <PropertyCard
+                id={property.id}
+                title={property.title}
+                price={property.price}
+                location={`${property.city}, ${property.state}`}
+                beds={property.bedrooms}
+                baths={property.bathrooms}
+                squareMeters={property.area}
+                imageUrl={mainImage}
+                isForRent={property.is_for_rent}
+              />
+            </div>
           );
         })
       ) : (

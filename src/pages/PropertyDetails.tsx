@@ -1,40 +1,77 @@
 
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import Navbar from "@/components/Navbar";
-import { getPropertyById, Property } from "@/services/properties";
-import { formatCurrency } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { Home, Bed, Bath, Maximize, HomeIcon, Phone, MapPin, ChevronLeft } from "lucide-react";
+import { getPropertyById, Property } from "@/services/properties";
+import { getRealtorInfo } from "@/services/auth";
+import { formatCurrency } from "@/lib/utils";
+import Navbar from "@/components/Navbar";
 
 const PropertyDetails = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState("");
+  const [owner, setOwner] = useState<{
+    name?: string;
+    photo_url?: string;
+    creci_code?: string | null;
+    is_realtor?: boolean;
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchPropertyDetails = async () => {
+    const fetchProperty = async () => {
       if (!id) return;
-      
+
+      setLoading(true);
       try {
-        setLoading(true);
-        const data = await getPropertyById(id);
+        const propertyData = await getPropertyById(id);
         
-        if (data) {
-          setProperty(data);
-          if (data.images && data.images.length > 0) {
-            const mainImage = data.images.find(img => img.is_main)?.image_url || data.images[0].image_url;
-            setActiveImage(mainImage);
+        if (!propertyData) {
+          toast({
+            title: "Erro",
+            description: "Imóvel não encontrado",
+            variant: "destructive",
+          });
+          navigate("/");
+          return;
+        }
+
+        setProperty(propertyData);
+
+        // Fetch owner information
+        if (propertyData.owner_id) {
+          const { profile } = await getRealtorInfo(propertyData.owner_id);
+          if (profile) {
+            setOwner(profile);
           }
         }
       } catch (error) {
-        console.error("Erro ao buscar detalhes do imóvel:", error);
+        console.error("Erro ao carregar imóvel:", error);
         toast({
-          title: "Erro ao carregar imóvel",
-          description: "Não foi possível carregar os detalhes deste imóvel.",
+          title: "Erro",
+          description: "Não foi possível carregar as informações do imóvel",
           variant: "destructive",
         });
       } finally {
@@ -42,15 +79,15 @@ const PropertyDetails = () => {
       }
     };
 
-    fetchPropertyDetails();
-  }, [id, toast]);
+    fetchProperty();
+  }, [id, toast, navigate]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="pt-28 flex justify-center items-center h-[60vh]">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <div className="container mx-auto py-28 px-4 flex items-center justify-center">
+          <p>Carregando detalhes do imóvel...</p>
         </div>
       </div>
     );
@@ -58,162 +95,187 @@ const PropertyDetails = () => {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="pt-28 container mx-auto px-4">
-          <div className="text-center py-20">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Imóvel não encontrado</h2>
-            <p className="text-gray-600 mb-8">O imóvel que você está procurando não existe ou foi removido.</p>
-            <Button asChild>
-              <a href="/">Voltar para página inicial</a>
-            </Button>
-          </div>
+        <div className="container mx-auto py-28 px-4 flex items-center justify-center">
+          <p>Imóvel não encontrado.</p>
         </div>
       </div>
     );
   }
 
-  const handleContactClick = () => {
-    if (property.contact_phone) {
-      window.open(`https://wa.me/${property.contact_phone.replace(/\D/g, '')}`, '_blank');
-    } else {
-      toast({
-        title: "Contato indisponível",
-        description: "Este anúncio não possui telefone para contato.",
-      });
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50 animate-fade-in">
       <Navbar />
-
-      <div className="pt-28 pb-16 container mx-auto px-4">
-        <div className="md:flex md:space-x-8">
-          {/* Imagens */}
-          <div className="md:w-2/3">
-            <div className="bg-gray-100 rounded-lg overflow-hidden mb-4">
-              {activeImage && (
-                <img 
-                  src={activeImage} 
-                  alt={property.title} 
-                  className="w-full h-[400px] object-cover" 
-                />
-              )}
-            </div>
-            
-            {property.images && property.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {property.images.map((img) => (
-                  <div 
-                    key={img.id}
-                    className={`cursor-pointer rounded-md overflow-hidden border-2 ${activeImage === img.image_url ? 'border-blue-600' : 'border-transparent'}`}
-                    onClick={() => setActiveImage(img.image_url)}
-                  >
-                    <img 
-                      src={img.image_url} 
-                      alt="Imagem do imóvel" 
-                      className="w-full h-20 object-cover" 
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Informações e contato */}
-          <div className="md:w-1/3 mt-6 md:mt-0">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="mb-4">
-                <span className="inline-block bg-blue-600 text-black text-xs font-medium px-2 py-1 rounded mb-2">
-                  {property.is_for_rent ? "Aluguel" : "Venda"}
-                </span>
-                <h1 className="text-2xl font-bold">{property.title}</h1>
-                <p className="text-gray-600">{property.city}, {property.state}</p>
-              </div>
-              
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(property.price)}
-                  {property.is_for_rent && "/mês"}
-                </h2>
-              </div>
-              
-              <div className="border-t border-b py-4 my-4 grid grid-cols-3 gap-4">
-                {property.bedrooms !== undefined && (
-                  <div className="text-center">
-                    <p className="text-xl font-semibold">{property.bedrooms}</p>
-                    <p className="text-gray-600 text-sm">{property.bedrooms === 1 ? 'Quarto' : 'Quartos'}</p>
-                  </div>
-                )}
-                {property.bathrooms !== undefined && (
-                  <div className="text-center">
-                    <p className="text-xl font-semibold">{property.bathrooms}</p>
-                    <p className="text-gray-600 text-sm">{property.bathrooms === 1 ? 'Banheiro' : 'Banheiros'}</p>
-                  </div>
-                )}
-                {property.area !== undefined && (
-                  <div className="text-center">
-                    <p className="text-xl font-semibold">{property.area}</p>
-                    <p className="text-gray-600 text-sm">m²</p>
-                  </div>
-                )}
-              </div>
-              
-              <Button 
-                onClick={handleContactClick}
-                className="w-full text-lg py-6 mt-4"
-              >
-                Contatar o anunciante
-              </Button>
+      <div className="container mx-auto py-28 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate("/")}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft size={16} />
+              <HomeIcon size={16} className="mr-1" /> Início
+            </Button>
+            <div className="text-gray-500 text-sm ml-auto">
+              {property.property_type} | {property.is_for_rent ? 'Aluguel' : 'Venda'}
             </div>
           </div>
-        </div>
-        
-        {/* Descrição */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Descrição</h2>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="whitespace-pre-line">{property.description || "Sem descrição disponível."}</p>
-          </div>
-        </div>
-        
-        {/* Detalhes */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Detalhes do imóvel</h2>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <dt className="text-gray-600">Tipo</dt>
-                <dd>{property.property_type}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-600">Endereço</dt>
-                <dd>{property.address || `${property.city}, ${property.state}`}</dd>
-              </div>
-              {property.bedrooms !== undefined && (
-                <div>
-                  <dt className="text-gray-600">Quartos</dt>
-                  <dd>{property.bedrooms}</dd>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Images and Main Details */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="overflow-hidden border-0 shadow-sm">
+                <div className="relative">
+                  {property.images && property.images.length > 0 ? (
+                    <Carousel className="relative">
+                      <CarouselContent>
+                        {property.images.map((image, index) => (
+                          <CarouselItem key={index} className="pl-0">
+                            <div className="aspect-[16/9] w-full">
+                              <img
+                                src={image.image_url}
+                                alt={`${property.title} - Imagem ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      <CarouselPrevious className="absolute left-2 bg-blue-600 text-white border-none hover:bg-blue-700" />
+                      <CarouselNext className="absolute right-2 bg-blue-600 text-white border-none hover:bg-blue-700" />
+                    </Carousel>
+                  ) : (
+                    <div className="aspect-[16/9] w-full bg-gray-200 flex items-center justify-center">
+                      <p className="text-gray-500">Sem imagens disponíveis</p>
+                    </div>
+                  )}
                 </div>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl">{property.title}</CardTitle>
+                  <CardDescription className="flex items-center gap-1">
+                    <MapPin size={16} className="text-gray-500" />
+                    {property.address ? `${property.address}, ` : ""}{property.city}, {property.state}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">Detalhes</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {property.bedrooms !== undefined && (
+                          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
+                            <Bed className="h-6 w-6 mb-2 text-blue-600" />
+                            <span className="text-lg font-medium">{property.bedrooms}</span>
+                            <span className="text-sm text-gray-500">
+                              {property.bedrooms === 1 ? "Quarto" : "Quartos"}
+                            </span>
+                          </div>
+                        )}
+                        {property.bathrooms !== undefined && (
+                          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
+                            <Bath className="h-6 w-6 mb-2 text-blue-600" />
+                            <span className="text-lg font-medium">{property.bathrooms}</span>
+                            <span className="text-sm text-gray-500">
+                              {property.bathrooms === 1 ? "Banheiro" : "Banheiros"}
+                            </span>
+                          </div>
+                        )}
+                        {property.area !== undefined && (
+                          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
+                            <Maximize className="h-6 w-6 mb-2 text-blue-600" />
+                            <span className="text-lg font-medium">{property.area}</span>
+                            <span className="text-sm text-gray-500">m²</span>
+                          </div>
+                        )}
+                        <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
+                          <Home className="h-6 w-6 mb-2 text-blue-600" />
+                          <span className="text-sm text-gray-500">Tipo</span>
+                          <span className="text-sm font-medium">{property.property_type}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">Descrição</h3>
+                      <p className="text-gray-700 whitespace-pre-wrap">
+                        {property.description || "Nenhuma descrição fornecida."}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Price Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-3xl text-blue-600">
+                    {formatCurrency(property.price)}
+                    {property.is_for_rent && <span className="text-lg ml-1">/mês</span>}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {property.contact_phone && (
+                    <div className="mb-4">
+                      <Button className="w-full flex items-center gap-2">
+                        <Phone size={18} /> Entrar em contato
+                      </Button>
+                    </div>
+                  )}
+                  <div>
+                    <Badge className="bg-blue-600 text-black text-xs rounded-full mb-2">
+                      {property.is_for_rent ? 'ALUGUEL' : 'VENDA'}
+                    </Badge>
+                    <p className="text-sm text-gray-500">
+                      Anunciado em {new Date(property.created_at || "").toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Owner Card */}
+              {owner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Anunciante</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 border border-gray-200">
+                        <AvatarImage src={owner.photo_url} />
+                        <AvatarFallback className="bg-blue-100 text-blue-600">
+                          {owner.name ? owner.name.charAt(0).toUpperCase() : "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{owner.name || "Usuário"}</p>
+                        {owner.is_realtor && owner.creci_code && (
+                          <p className="text-sm text-gray-500">CRECI: {owner.creci_code}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                  {property.contact_phone && (
+                    <CardFooter className="border-t pt-4">
+                      <p className="text-sm flex items-center gap-2">
+                        <Phone size={14} className="text-gray-500" />
+                        {property.contact_phone}
+                      </p>
+                    </CardFooter>
+                  )}
+                </Card>
               )}
-              {property.bathrooms !== undefined && (
-                <div>
-                  <dt className="text-gray-600">Banheiros</dt>
-                  <dd>{property.bathrooms}</dd>
-                </div>
-              )}
-              {property.area !== undefined && (
-                <div>
-                  <dt className="text-gray-600">Área</dt>
-                  <dd>{property.area} m²</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-gray-600">ID do anúncio</dt>
-                <dd>{property.id}</dd>
-              </div>
-            </dl>
+            </div>
           </div>
         </div>
       </div>

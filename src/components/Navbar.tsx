@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
@@ -11,11 +11,13 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { useToast } from './ui/use-toast';
+import { HomeIcon } from 'lucide-react';
 
 const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,18 +55,36 @@ const Navbar = () => {
     }
   };
 
+  const goHome = () => {
+    navigate('/');
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-10 bg-white shadow-md">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <div>
-            <Link to="/" className="text-xl font-bold text-blue-600">
-              Imobiliária
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center">
+              <img 
+                src="https://i.postimg.cc/QxHJpJRq/487920932-1090659346410592-2968078890675727046-n.jpg" 
+                alt="Movvi" 
+                className="h-9 w-auto"
+              />
             </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Botão de anunciar (azul com fonte preta) conforme solicitado */}
+          <div className="flex items-center space-x-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-blue-600 hidden sm:flex items-center gap-1"
+              onClick={goHome}
+            >
+              <HomeIcon size={18} />
+              <span className="hidden lg:inline">Início</span>
+            </Button>
+            
+            {/* Botão de anunciar (azul com fonte preta) */}
             <Link to="/create-listing">
               <Button className="bg-blue-500 hover:bg-blue-600 text-black">
                 Anunciar

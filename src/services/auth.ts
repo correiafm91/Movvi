@@ -19,6 +19,7 @@ export type Profile = {
   phone?: string;
   photo_url?: string;
   is_realtor?: boolean;
+  creci_code?: string | null;
 };
 
 export async function signUp({ email, password }: AuthSignUpCredentials) {
@@ -139,4 +140,18 @@ export async function uploadProfilePhoto(file: File): Promise<{ url: string | nu
     .getPublicUrl(data.path);
 
   return { url: publicUrl, error: null };
+}
+
+export async function getRealtorInfo(userId: string): Promise<{ profile: Profile | null, error: Error | null }> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('name, photo_url, creci_code, is_realtor')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    return { profile: null, error };
+  }
+
+  return { profile: data as Profile, error: null };
 }
