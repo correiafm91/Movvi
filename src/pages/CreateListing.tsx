@@ -123,11 +123,12 @@ const CreateListing = () => {
         area: area ? parseFloat(area) : undefined,
         is_for_rent: listingType === 'rent',
         contact_phone: contact,
+        owner_id: (await supabase.auth.getUser()).data.user?.id
       };
 
-      const { success, data, error } = await createProperty(propertyData, photos);
+      const result = await createProperty(propertyData, photos);
       
-      if (success && data) {
+      if (result.success && result.data) {
         toast({
           title: "Anúncio criado",
           description: "Seu imóvel foi anunciado com sucesso!",
@@ -136,7 +137,7 @@ const CreateListing = () => {
         // Redirecionar para a página inicial
         navigate("/");
       } else {
-        throw error || new Error("Erro ao criar anúncio");
+        throw result.error || new Error("Erro ao criar anúncio");
       }
     } catch (error) {
       console.error("Erro ao criar anúncio:", error);
@@ -182,7 +183,7 @@ const CreateListing = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Upload de fotos */}
+              {/* Photo upload */}
               <div className="space-y-2">
                 <Label htmlFor="photos">Fotos do imóvel</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -234,7 +235,7 @@ const CreateListing = () => {
                 </p>
               </div>
               
-              {/* Título */}
+              {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Título do anúncio</Label>
                 <Input
@@ -246,7 +247,7 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Descrição */}
+              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição detalhada</Label>
                 <Textarea
@@ -259,7 +260,7 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Tipo do imóvel */}
+              {/* Property type */}
               <div className="space-y-2">
                 <Label htmlFor="propertyType">Tipo do imóvel</Label>
                 <select
@@ -279,7 +280,7 @@ const CreateListing = () => {
                 </select>
               </div>
               
-              {/* Detalhes */}
+              {/* Property details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bedrooms">Quartos</Label>
@@ -315,7 +316,7 @@ const CreateListing = () => {
                 </div>
               </div>
               
-              {/* Tipo de anúncio */}
+              {/* Listing type */}
               <div className="space-y-2">
                 <Label>Tipo de anúncio</Label>
                 <RadioGroup
@@ -334,7 +335,7 @@ const CreateListing = () => {
                 </RadioGroup>
               </div>
               
-              {/* Preço */}
+              {/* Price */}
               <div className="space-y-2">
                 <Label htmlFor="price">
                   Preço {listingType === "rent" ? "(mensal)" : ""}
@@ -348,13 +349,13 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Localização */}
+              {/* Location */}
               <div className="space-y-2">
                 <Label>Localização</Label>
                 <LocationSelector onLocationChange={setLocation} disabled={isLoading} />
               </div>
               
-              {/* Contato */}
+              {/* Contact */}
               <div className="space-y-2">
                 <Label htmlFor="contact">Telefone para contato</Label>
                 <Input
