@@ -21,11 +21,28 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Home, Bed, Bath, Maximize, HomeIcon, Phone, MapPin, ChevronLeft } from "lucide-react";
+import { 
+  Home, 
+  Bed, 
+  Bath, 
+  Maximize, 
+  HomeIcon, 
+  Phone, 
+  MapPin, 
+  ChevronLeft,
+  Mail,
+  MessageSquare,
+  Copy
+} from "lucide-react";
 import { getPropertyById, Property } from "@/services/properties";
 import { getRealtorInfo } from "@/services/auth";
 import { formatCurrency } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +98,55 @@ const PropertyDetails = () => {
 
     fetchProperty();
   }, [id, toast, navigate]);
+
+  const handleCopyPhone = () => {
+    if (property?.contact_phone) {
+      navigator.clipboard.writeText(property.contact_phone);
+      toast({
+        title: "Número copiado",
+        description: "O número de telefone foi copiado para a área de transferência",
+      });
+    }
+  };
+
+  const handleContactClick = () => {
+    if (!property?.contact_phone) {
+      toast({
+        title: "Informação indisponível",
+        description: "Este anúncio não possui telefone de contato",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For mobile devices, try to open the phone app
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      window.location.href = `tel:${property.contact_phone}`;
+    } else {
+      // For desktop, show the phone number and option to copy
+      handleCopyPhone();
+    }
+  };
+
+  const handleWhatsAppClick = () => {
+    if (!property?.contact_phone) {
+      toast({
+        title: "Informação indisponível",
+        description: "Este anúncio não possui telefone de contato",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Format phone number for WhatsApp link (remove non-digits)
+    const formattedPhone = property.contact_phone.replace(/\D/g, '');
+    
+    // Default message
+    const message = encodeURIComponent(`Olá! Vi seu anúncio do imóvel "${property.title}" no Movvi e gostaria de mais informações.`);
+    
+    // Open WhatsApp with the phone number and message
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
+  };
 
   if (loading) {
     return (
@@ -226,14 +292,49 @@ const PropertyDetails = () => {
                 </CardHeader>
                 <CardContent>
                   {property.contact_phone && (
-                    <div className="mb-4">
-                      <Button className="w-full flex items-center gap-2">
+                    <div className="space-y-3">
+                      <Button 
+                        className="w-full flex items-center gap-2"
+                        onClick={handleContactClick}
+                      >
                         <Phone size={18} /> Entrar em contato
                       </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        className="w-full flex items-center gap-2"
+                        onClick={handleWhatsAppClick}
+                      >
+                        <MessageSquare size={18} /> Contato via WhatsApp
+                      </Button>
+                      
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            className="w-full flex items-center gap-2 text-gray-600"
+                          >
+                            <Copy size={18} /> Copiar telefone
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{property.contact_phone}</div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              onClick={handleCopyPhone}
+                            >
+                              <Copy size={14} />
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
-                  <div>
-                    <Badge className="bg-blue-600 text-black text-xs rounded-full mb-2">
+                  <div className="mt-4">
+                    <Badge className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs rounded-full mb-2">
                       {property.is_for_rent ? 'ALUGUEL' : 'VENDA'}
                     </Badge>
                     <p className="text-sm text-gray-500">
