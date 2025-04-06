@@ -1,39 +1,36 @@
 
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import Index from "@/pages/Index";
+import PropertyDetails from "@/pages/PropertyDetails";
+import Auth from "@/pages/Auth";
+import CreateListing from "@/pages/CreateListing";
+import Profile from "@/pages/Profile";
+import NotFound from "@/pages/NotFound";
+import EditProperty from "@/pages/EditProperty";
+import MyProperties from "@/components/MyProperties";
+import RealtorProfile from "@/pages/RealtorProfile";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import CreateListing from "./pages/CreateListing";
-import PropertyDetails from "./pages/PropertyDetails";
-import EditProperty from "./pages/EditProperty";
-import RealtorProfile from "./pages/RealtorProfile";
+import { UserProvider } from "@/hooks/use-user";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+function App() {
+  return (
+    <UserProvider>
+      <Router>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/create-listing" element={<CreateListing />} />
           <Route path="/property/:id" element={<PropertyDetails />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/create-listing" element={<CreateListing />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/my-properties" element={<MyProperties />} />
           <Route path="/edit-property/:id" element={<EditProperty />} />
           <Route path="/realtor/:id" element={<RealtorProfile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+        <Toaster />
+      </Router>
+    </UserProvider>
+  );
+}
 
 export default App;
