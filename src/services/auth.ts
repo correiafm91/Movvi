@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -125,10 +124,10 @@ export async function uploadProfilePhoto(file: File): Promise<{ url: string | nu
   }
 
   const fileExt = file.name.split('.').pop();
-  const filePath = `${user.id}/profile.${fileExt}`;
+  const filePath = `profiles/${user.id}.${fileExt}`;
 
-  const { data, error } = await supabase.storage
-    .from('property_images')
+  const { error } = await supabase.storage
+    .from('properties')
     .upload(filePath, file, { upsert: true });
 
   if (error) {
@@ -136,8 +135,8 @@ export async function uploadProfilePhoto(file: File): Promise<{ url: string | nu
   }
 
   const { data: { publicUrl } } = supabase.storage
-    .from('property_images')
-    .getPublicUrl(data.path);
+    .from('properties')
+    .getPublicUrl(filePath);
 
   return { url: publicUrl, error: null };
 }

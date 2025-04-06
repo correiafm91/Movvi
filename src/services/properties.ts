@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Property {
@@ -153,7 +154,7 @@ export async function createProperty(propertyData: Omit<Property, 'id'>, photos?
       const imagePromises = photos.map(async (photo, index) => {
         const fileExt = photo.name.split('.').pop();
         const fileName = `${propertyResult.id}-${Date.now()}-${index}.${fileExt}`;
-        const filePath = `property-images/${fileName}`;
+        const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('properties')
