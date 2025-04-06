@@ -6,8 +6,8 @@ import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
 import { 
   getProperties, 
-  Property, 
-  PropertySearchParams 
+  Property,
+  PropertySearchParams
 } from "@/services/properties";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -19,7 +19,8 @@ const Index = () => {
   const [searchParams, setSearchParams] = useState({
     query: "",
     location: { state: "", city: "" },
-    priceRange: { min: null as number | null, max: null as number | null }
+    priceRange: { min: null as number | null, max: null as number | null },
+    propertyType: ""
   });
   const isMobile = useIsMobile();
 
@@ -47,6 +48,11 @@ const Index = () => {
         
         if (searchParams.priceRange.max !== null) {
           params.maxPrice = searchParams.priceRange.max;
+        }
+        
+        // Add property type filter if set
+        if (searchParams.propertyType) {
+          params.propertyType = searchParams.propertyType;
         }
         
         const data = await getProperties(params);
@@ -79,9 +85,10 @@ const Index = () => {
   const handleSearch = (
     query: string, 
     location: { state: string; city: string },
-    priceRange: { min: number | null; max: number | null }
+    priceRange: { min: number | null; max: number | null },
+    propertyType: string
   ) => {
-    setSearchParams({ query, location, priceRange });
+    setSearchParams({ query, location, priceRange, propertyType });
   };
 
   return (

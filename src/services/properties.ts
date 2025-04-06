@@ -26,6 +26,15 @@ export interface Property {
   }[];
 }
 
+export interface PropertySearchParams {
+  type?: 'all' | 'rent' | 'sale';
+  state?: string;
+  city?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  propertyType?: string;
+}
+
 export async function getPropertyById(id: string): Promise<Property | null> {
   const { data, error } = await supabase
     .from('properties')
@@ -55,8 +64,8 @@ export async function getPropertyById(id: string): Promise<Property | null> {
   return property;
 }
 
-export async function getProperties(): Promise<Property[]> {
-  const { data, error } = await supabase
+export async function getProperties(params: PropertySearchParams = {}): Promise<Property[]> {
+  let query = supabase
     .from('properties')
     .select(`
       *,
@@ -66,8 +75,38 @@ export async function getProperties(): Promise<Property[]> {
         property_id,
         is_main
       )
-    `)
-    .order('created_at', { ascending: false });
+    `);
+
+  // Apply filters based on parameters
+  if (params.type && params.type !== 'all') {
+    const isForRent = params.type === 'rent';
+    query = query.eq('is_for_rent', isForRent);
+  }
+
+  if (params.state) {
+    query = query.eq('state', params.state);
+  }
+
+  if (params.city) {
+    query = query.eq('city', params.city);
+  }
+
+  if (params.minPrice !== undefined && params.minPrice !== null) {
+    query = query.gte('price', params.minPrice);
+  }
+
+  if (params.maxPrice !== undefined && params.maxPrice !== null) {
+    query = query.lte('price', params.maxPrice);
+  }
+  
+  if (params.propertyType) {
+    query = query.eq('property_type', params.propertyType);
+  }
+
+  // Order by creation date
+  query = query.order('created_at', { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching properties:", error);
@@ -88,7 +127,7 @@ export async function createProperty(propertyData: Omit<Property, 'id'>, photos?
     // First, insert the property data
     const { data: propertyResult, error: propertyError } = await supabase
       .from('properties')
-      .insert([propertyData])
+      .insert(propertyData)
       .select()
       .single();
   
@@ -166,27 +205,27 @@ export async function createProperty(propertyData: Omit<Property, 'id'>, photos?
   }
 }
 
-export async function updateProperty(id: string, updates: Partial<Property>): Promise<Property | null> {
+export async function updateProperty(id: string, updates: Partial<Property>): Promise<{success: boolean, data?: Property, error?: any}> {
   const { data, error } = await supabase
     .from('properties')
     .update(updates)
     .eq('id', id)
     .select()
-    .single()
+    .single();
 
   if (error) {
     console.error("Error updating property:", error);
-    return null;
+    return { success: false, error };
   }
 
-  return data as Property;
+  return { success: true, data: data as Property };
 }
 
 export async function deleteProperty(id: string): Promise<boolean> {
   const { error } = await supabase
     .from('properties')
     .delete()
-    .eq('id', id)
+    .eq('id', id);
 
   if (error) {
     console.error("Error deleting property:", error);

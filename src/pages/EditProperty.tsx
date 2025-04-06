@@ -1,344 +1,394 @@
-
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import LocationSelector from "@/components/LocationSelector";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Property, getPropertyById, updateProperty } from "@/services/properties";
 import Navbar from "@/components/Navbar";
-import { getPropertyById, updateProperty, Property } from "@/services/properties";
+import { useUser } from "@/hooks/use-user";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
-const propertyTypes = [
-  "Apartamento",
-  "Casa",
-  "Cobertura",
-  "Terreno",
-  "Sala Comercial",
-  "Galpão",
-  "Sítio",
-  "Chácara",
-  "Fazenda",
-  "Prédio",
-  "Loja",
-];
+const formSchema = z.object({
+  title: z.string().min(3, {
+    message: "Título deve ter pelo menos 3 caracteres.",
+  }),
+  description: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().min(2, {
+    message: "Cidade deve ter pelo menos 2 caracteres.",
+  }),
+  state: z.string().min(2, {
+    message: "Estado deve ter pelo menos 2 caracteres.",
+  }),
+  price: z.number().min(1, {
+    message: "Preço deve ser maior que zero.",
+  }),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  area: z.number().optional(),
+  property_type: z.string().min(3, {
+    message: "Tipo de imóvel deve ter pelo menos 3 caracteres.",
+  }),
+  contact_phone: z.string().optional(),
+  is_for_rent: z.boolean().default(false),
+});
 
 const EditProperty = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useUser();
   const [property, setProperty] = useState<Property | null>(null);
-  
-  // Form state
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState<number | "">("");
-  const [location, setLocation] = useState({ state: "", city: "" });
-  const [address, setAddress] = useState("");
-  const [propertyType, setPropertyType] = useState("");
-  const [bedrooms, setBedrooms] = useState<number | "">("");
-  const [bathrooms, setBathrooms] = useState<number | "">("");
-  const [area, setArea] = useState<number | "">("");
-  const [isForRent, setIsForRent] = useState(false);
-  const [contactPhone, setContactPhone] = useState("");
 
   useEffect(() => {
-    if (!id) return;
-
     const fetchProperty = async () => {
-      setIsLoading(true);
-      try {
-        const propData = await getPropertyById(id);
-        if (!propData) {
+      if (id) {
+        const fetchedProperty = await getPropertyById(id);
+        if (fetchedProperty) {
+          setProperty(fetchedProperty);
+        } else {
           toast({
-            title: "Erro",
-            description: "Imóvel não encontrado",
+            title: "Imóvel não encontrado.",
+            description: "Não foi possível encontrar o imóvel com o ID especificado.",
             variant: "destructive",
           });
-          navigate("/profile");
-          return;
+          navigate("/");
         }
-        
-        setProperty(propData);
-        
-        // Fill form with property data
-        setTitle(propData.title);
-        setDescription(propData.description || "");
-        setPrice(propData.price);
-        setLocation({ state: propData.state, city: propData.city });
-        setAddress(propData.address || "");
-        setPropertyType(propData.property_type);
-        setBedrooms(propData.bedrooms || "");
-        setBathrooms(propData.bathrooms || "");
-        setArea(propData.area || "");
-        setIsForRent(propData.is_for_rent);
-        setContactPhone(propData.contact_phone || "");
-      } catch (error) {
-        console.error("Erro ao carregar imóvel:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar as informações do imóvel",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
       }
     };
 
     fetchProperty();
   }, [id, navigate, toast]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: property ? zodResolver(formSchema) : undefined,
+    defaultValues: {
+      title: property?.title || "",
+      description: property?.description || "",
+      address: property?.address || "",
+      city: property?.city || "",
+      state: property?.state || "",
+      price: property?.price || 0,
+      bedrooms: property?.bedrooms || 0,
+      bathrooms: property?.bathrooms || 0,
+      area: property?.area || 0,
+      property_type: property?.property_type || "",
+      contact_phone: property?.contact_phone || "",
+      is_for_rent: property?.is_for_rent || false,
+    },
+    mode: "onChange",
+    shouldUnregister: false,
+  });
 
-    if (!title || !location.state || !location.city || !price || !propertyType) {
+  useEffect(() => {
+    if (property) {
+      form.reset({
+        title: property.title,
+        description: property.description || "",
+        address: property.address || "",
+        city: property.city,
+        state: property.state,
+        price: property.price,
+        bedrooms: property.bedrooms || undefined,
+        bathrooms: property.bathrooms || undefined,
+        area: property.area || undefined,
+        property_type: property.property_type,
+        contact_phone: property.contact_phone || "",
+        is_for_rent: property.is_for_rent,
+      });
+    }
+  }, [property, form]);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!id) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios",
+        title: "Erro",
+        description: "ID do imóvel não especificado.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsLoading(true);
     try {
-      const { success } = await updateProperty(id!, {
-        title,
-        description,
-        price: Number(price),
-        state: location.state,
-        city: location.city,
-        address,
-        property_type: propertyType,
-        bedrooms: bedrooms === "" ? undefined : Number(bedrooms),
-        bathrooms: bathrooms === "" ? undefined : Number(bathrooms),
-        area: area === "" ? undefined : Number(area),
-        is_for_rent: isForRent,
-        contact_phone: contactPhone,
-      });
+      const formData = {
+        ...values,
+        price: Number(values.price),
+        bedrooms: values.bedrooms ? Number(values.bedrooms) : undefined,
+        bathrooms: values.bathrooms ? Number(values.bathrooms) : undefined,
+        area: values.area ? Number(values.area) : undefined,
+      };
 
-      if (success) {
+      const result = await updateProperty(id, formData);
+
+      if (result?.success) {
         toast({
-          title: "Imóvel atualizado",
-          description: "As informações do imóvel foram atualizadas com sucesso",
+          title: "Sucesso",
+          description: "Imóvel atualizado com sucesso!",
         });
-        navigate("/profile");
+        navigate(`/property/${id}`);
+      } else {
+        toast({
+          title: "Erro",
+          description: "Falha ao atualizar o imóvel.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error("Erro ao atualizar imóvel:", error);
+      console.error("Erro ao atualizar o imóvel:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o imóvel",
+        description: "Ocorreu um erro inesperado ao atualizar o imóvel.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  if (isLoading && !property) {
+  if (!property) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-100">
         <Navbar />
-        <div className="container mx-auto py-28 px-4 flex items-center justify-center">
-          <p>Carregando informações do imóvel...</p>
+        <div className="container mx-auto py-12 px-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Carregando imóvel...</h2>
+            <p className="text-gray-600">Aguarde enquanto buscamos os detalhes do imóvel.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.id !== property.owner_id) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Navbar />
+        <div className="container mx-auto py-12 px-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Acesso negado</h2>
+            <p className="text-gray-600">Você não tem permissão para editar este imóvel.</p>
+            <Link to="/" className="text-blue-500">Voltar para a página inicial</Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in">
+    <div className="min-h-screen bg-gray-100">
       <Navbar />
-      <div className="container mx-auto py-28 px-4">
-        <Card className="max-w-3xl mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Editar Imóvel</CardTitle>
+      <div className="container mx-auto py-12 px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Editar Imóvel</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="title" className="font-medium">
-                    Título do anúncio*
-                  </Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Ex: Apartamento de 2 quartos no Centro"
-                    disabled={isLoading}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Título</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Título do imóvel" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="property_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Imóvel</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Apartamento, Casa" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="description" className="font-medium">
-                    Descrição
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Descreva o imóvel, incluindo características especiais, localização, etc."
-                    rows={5}
-                    disabled={isLoading}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Cidade" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estado</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Estado" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="w-full md:w-1/2">
-                    <Label htmlFor="price" className="font-medium">
-                      Preço*
-                    </Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : "")}
-                      placeholder="Valor do imóvel"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2">
-                    <div className="flex items-center h-full pt-6">
-                      <Switch
-                        id="isForRent"
-                        checked={isForRent}
-                        onCheckedChange={setIsForRent}
-                        disabled={isLoading}
-                      />
-                      <Label htmlFor="isForRent" className="ml-2">
-                        Este imóvel é para aluguel
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-medium">Localização*</Label>
-                  <LocationSelector
-                    onLocationChange={setLocation}
-                    initialState={location.state}
-                    initialCity={location.city}
-                    disabled={isLoading}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="Preço" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <div>
-                  <Label htmlFor="address" className="font-medium">
-                    Endereço
-                  </Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Rua, número, bairro, etc."
-                    disabled={isLoading}
+                  <FormField
+                    control={form.control}
+                    name="contact_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone para contato</FormLabel>
+                        <FormControl>
+                          <Input placeholder="(XX) XXXXX-XXXX" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="propertyType" className="font-medium">
-                    Tipo de imóvel*
-                  </Label>
-                  <Select
-                    value={propertyType}
-                    onValueChange={setPropertyType}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo de imóvel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {propertyTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="bedrooms" className="font-medium">
-                      Quartos
-                    </Label>
-                    <Input
-                      id="bedrooms"
-                      type="number"
-                      min="0"
-                      value={bedrooms}
-                      onChange={(e) => setBedrooms(e.target.value ? Number(e.target.value) : "")}
-                      placeholder="Nº de quartos"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bathrooms" className="font-medium">
-                      Banheiros
-                    </Label>
-                    <Input
-                      id="bathrooms"
-                      type="number"
-                      min="0"
-                      value={bathrooms}
-                      onChange={(e) => setBathrooms(e.target.value ? Number(e.target.value) : "")}
-                      placeholder="Nº de banheiros"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="area" className="font-medium">
-                      Área (m²)
-                    </Label>
-                    <Input
-                      id="area"
-                      type="number"
-                      min="0"
-                      value={area}
-                      onChange={(e) => setArea(e.target.value ? Number(e.target.value) : "")}
-                      placeholder="Área em m²"
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
+                  <FormField
+                    control={form.control}
+                    name="bedrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quartos</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="Número de quartos" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <div>
-                  <Label htmlFor="contactPhone" className="font-medium">
-                    Telefone para contato
-                  </Label>
-                  <Input
-                    id="contactPhone"
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="(XX) XXXXX-XXXX"
-                    disabled={isLoading}
+                  <FormField
+                    control={form.control}
+                    name="bathrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Banheiros</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="Número de banheiros" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="area"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Área (m²)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="Área em metros quadrados" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate("/profile")}
-                  disabled={isLoading}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  {isLoading ? "Salvando..." : "Salvar Alterações"}
-                </Button>
-              </div>
-            </form>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Endereço</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Rua, número, bairro" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Descrição detalhada do imóvel"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="is_for_rent"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel>Disponível para Aluguel</FormLabel>
+                        {/* <FormDescription>
+                          Marque se este imóvel está disponível para aluguel.
+                        </FormDescription> */}
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit">Atualizar Imóvel</Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

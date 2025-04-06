@@ -11,6 +11,11 @@ import {
 import {
   Slider
 } from "@/components/ui/slider";
+import {
+  RadioGroup,
+  RadioGroupItem
+} from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import LocationSelector from './LocationSelector';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -18,7 +23,8 @@ interface SearchBarProps {
   onSearch?: (
     query: string, 
     location: { state: string; city: string },
-    priceRange: { min: number | null; max: number | null }
+    priceRange: { min: number | null; max: number | null },
+    propertyType: string
   ) => void;
 }
 
@@ -28,17 +34,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [propertyType, setPropertyType] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Buscando por:", { query, location, priceRange });
+    console.log("Buscando por:", { query, location, priceRange, propertyType });
     if (onSearch) {
-      onSearch(query, location, {
-        min: minPrice ? Number(minPrice) : null,
-        max: maxPrice ? Number(maxPrice) : null
-      });
+      onSearch(
+        query, 
+        location, 
+        {
+          min: minPrice ? Number(minPrice) : null,
+          max: maxPrice ? Number(maxPrice) : null
+        },
+        propertyType
+      );
     }
     setFiltersOpen(false);
   };
@@ -99,6 +111,40 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       />
                     </div>
                   </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Tipo de Imóvel</h3>
+                  <RadioGroup value={propertyType} onValueChange={setPropertyType} className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Apartamento" id="apartamento" />
+                      <Label htmlFor="apartamento">Apartamento</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Casa" id="casa" />
+                      <Label htmlFor="casa">Casa</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Kitnet" id="kitnet" />
+                      <Label htmlFor="kitnet">Kitnet</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Terreno" id="terreno" />
+                      <Label htmlFor="terreno">Terreno</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Comercial" id="comercial" />
+                      <Label htmlFor="comercial">Comercial</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Rural" id="rural" />
+                      <Label htmlFor="rural">Rural</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="" id="todos" />
+                      <Label htmlFor="todos">Todos</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 
                 <Button 
