@@ -28,6 +28,7 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
   
   const pixCode = PIX_CODES[days as keyof typeof PIX_CODES] || PIX_CODES[1];
   
@@ -42,6 +43,7 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
   };
   
   const confirmPayment = async () => {
+    setShowWarning(true);
     setLoading(true);
     
     try {
@@ -107,7 +109,14 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
       
       <div>
         <div className="text-center mb-4">
-          <h3 className="font-medium text-lg">Pague com PIX</h3>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <h3 className="font-medium text-lg">Pague com PIX</h3>
+            <img 
+              src="https://i.postimg.cc/ZnL5H7V8/Estojo-100-pens-box-grande-personalizado-Stitch-azul-e-rosa.jpg" 
+              alt="PIX" 
+              className="h-6 w-6 object-contain" 
+            />
+          </div>
           <p className="text-sm text-gray-500">Copie o código abaixo e pague no seu banco</p>
         </div>
         
@@ -131,6 +140,12 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
         </div>
       </div>
       
+      {showWarning && (
+        <div className="text-red-600 text-sm font-medium text-center p-2 bg-red-50 rounded-md border border-red-200">
+          Caso houver uma tentativa de fraude, ou seja: Confirmar pagamento sem ter pago o anúncio antes, detectamos e baniremos a conta.
+        </div>
+      )}
+      
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrevious} disabled={loading}>
           Voltar
@@ -149,3 +164,4 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
     </div>
   );
 }
+

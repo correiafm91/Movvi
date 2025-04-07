@@ -156,23 +156,27 @@ export async function createProperty(propertyData: Omit<Property, 'id'>, photos?
       return { success: false, error: "owner_id is required" };
     }
 
+    const propertyInsertData = {
+      title: propertyData.title,
+      description: propertyData.description,
+      address: propertyData.address,
+      city: propertyData.city,
+      state: propertyData.state,
+      price: propertyData.price,
+      bedrooms: propertyData.bedrooms,
+      bathrooms: propertyData.bathrooms,
+      area: propertyData.area,
+      property_type: propertyData.property_type,
+      is_for_rent: propertyData.is_for_rent,
+      owner_id: propertyData.owner_id,
+      contact_phone: propertyData.contact_phone,
+      is_featured: propertyData.is_featured || false,
+      is_featured_until: propertyData.is_featured_until || null
+    };
+
     const { data: propertyResult, error: propertyError } = await supabase
       .from('properties')
-      .insert({
-        title: propertyData.title,
-        description: propertyData.description,
-        address: propertyData.address,
-        city: propertyData.city,
-        state: propertyData.state,
-        price: propertyData.price,
-        bedrooms: propertyData.bedrooms,
-        bathrooms: propertyData.bathrooms,
-        area: propertyData.area,
-        property_type: propertyData.property_type,
-        is_for_rent: propertyData.is_for_rent,
-        owner_id: propertyData.owner_id,
-        contact_phone: propertyData.contact_phone,
-      })
+      .insert(propertyInsertData)
       .select()
       .single();
   
