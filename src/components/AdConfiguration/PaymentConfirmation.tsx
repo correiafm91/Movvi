@@ -28,7 +28,6 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [showWarning, setShowWarning] = useState(false);
   
   const pixCode = PIX_CODES[days as keyof typeof PIX_CODES] || PIX_CODES[1];
   
@@ -43,7 +42,6 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
   };
   
   const confirmPayment = async () => {
-    setShowWarning(true);
     setLoading(true);
     
     try {
@@ -138,13 +136,11 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
             </button>
           </div>
         </div>
-      </div>
-      
-      {showWarning && (
-        <div className="text-red-600 text-sm font-medium text-center p-2 bg-red-50 rounded-md border border-red-200">
+        
+        <div className="text-red-600 text-sm font-medium text-center p-2 mt-4 bg-red-50 rounded-md border border-red-200">
           Caso houver uma tentativa de fraude, ou seja: Confirmar pagamento sem ter pago o anúncio antes, detectamos e baniremos a conta.
         </div>
-      )}
+      </div>
       
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrevious} disabled={loading}>
@@ -164,4 +160,3 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
     </div>
   );
 }
-
