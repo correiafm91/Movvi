@@ -56,6 +56,8 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_featured: boolean | null
+          is_featured_until: string | null
           is_for_rent: boolean
           owner_id: string
           price: number
@@ -74,6 +76,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_featured?: boolean | null
+          is_featured_until?: string | null
           is_for_rent?: boolean
           owner_id: string
           price: number
@@ -92,6 +96,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_featured?: boolean | null
+          is_featured_until?: string | null
           is_for_rent?: boolean
           owner_id?: string
           price?: number

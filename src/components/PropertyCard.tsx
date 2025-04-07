@@ -40,7 +40,7 @@ const PropertyCard = ({
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
           />
           <div className="absolute top-2 right-2 flex flex-col gap-2">
-            <Badge className="bg-blue-600 text-black text-xs font-medium">
+            <Badge className="bg-blue-600 text-white text-xs font-medium">
               {isForRent ? "Aluguel" : "Venda"}
             </Badge>
             {isFeatured && (

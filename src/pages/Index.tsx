@@ -189,7 +189,7 @@ const Index = () => {
               <p className="text-gray-600 mb-6">Seja o primeiro a anunciar um imóvel!</p>
               <Link 
                 to="/create-listing"
-                className="bg-blue-600 text-black px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
+                className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
               >
                 Anunciar agora
               </Link>
@@ -265,6 +265,7 @@ const PropertyList = ({ properties }: { properties: Property[] }) => {
                 squareMeters={property.area}
                 imageUrl={mainImage}
                 isForRent={property.is_for_rent}
+                isFeatured={property.is_featured}
               />
             </div>
           );
