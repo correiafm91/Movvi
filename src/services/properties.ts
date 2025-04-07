@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Property {
@@ -242,30 +241,44 @@ export async function deleteProperty(id: string): Promise<boolean> {
   return true;
 }
 
-export async function getPropertiesByOwner(ownerId: string): Promise<Property[]> {
-  const { data, error } = await supabase
-    .from('properties')
-    .select(`
-      *,
-      property_images (
-        id,
-        image_url,
-        property_id,
-        is_main
-      )
-    `)
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false });
+export async function getPropertiesByOwner(ownerId?: string): Promise<Property[]> {
+  try {
+    if (!ownerId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("User not authenticated");
+        return [];
+      }
+      ownerId = user.id;
+    }
 
-  if (error) {
-    console.error("Error fetching properties by owner:", error);
+    const { data, error } = await supabase
+      .from('properties')
+      .select(`
+        *,
+        property_images (
+          id,
+          image_url,
+          property_id,
+          is_main
+        )
+      `)
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching properties by owner:", error);
+      return [];
+    }
+
+    const properties = data.map(item => ({
+      ...item,
+      images: item.property_images || []
+    })) as Property[];
+
+    return properties;
+  } catch (error) {
+    console.error("Unexpected error fetching properties:", error);
     return [];
   }
-
-  const properties = data.map(item => ({
-    ...item,
-    images: item.property_images || []
-  })) as Property[];
-
-  return properties;
 }

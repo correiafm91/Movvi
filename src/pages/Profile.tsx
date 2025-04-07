@@ -21,15 +21,23 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import MyProperties from "@/components/MyProperties";
 import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
-import { Award, ExternalLink } from "lucide-react";
+import { Award } from "lucide-react";
+import { Property } from "@/services/properties";
+import { PropertySelection } from "@/components/AdConfiguration/PropertySelection";
+import { BudgetConfiguration } from "@/components/AdConfiguration/BudgetConfiguration";
+import { PaymentConfirmation } from "@/components/AdConfiguration/PaymentConfirmation";
+
+enum AdConfigStep {
+  PropertySelection,
+  Budget,
+  Payment
+}
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -43,6 +51,10 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const [showCreateListingDialog, setShowCreateListingDialog] = useState(false);
   const [showSponsorDialog, setShowSponsorDialog] = useState(false);
+  const [adConfigStep, setAdConfigStep] = useState<AdConfigStep>(AdConfigStep.PropertySelection);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [adDays, setAdDays] = useState(1);
+  const [adAmount, setAdAmount] = useState(50);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -186,12 +198,46 @@ const ProfilePage = () => {
   };
 
   const handleSponsorClick = () => {
+    setAdConfigStep(AdConfigStep.PropertySelection);
+    setSelectedProperty(null);
     setShowSponsorDialog(true);
   };
 
-  const handleSponsorRedirect = () => {
-    window.open("https://form.respondi.app/pgdUo1tO", "_blank");
+  const handleSelectProperty = (property: Property) => {
+    setSelectedProperty(property);
+    setAdConfigStep(AdConfigStep.Budget);
+  };
+
+  const handleAdBudgetNext = (days: number, amount: number) => {
+    setAdDays(days);
+    setAdAmount(amount);
+    setAdConfigStep(AdConfigStep.Payment);
+  };
+
+  const handleAdBudgetPrevious = () => {
+    setAdConfigStep(AdConfigStep.PropertySelection);
+  };
+
+  const handlePaymentPrevious = () => {
+    setAdConfigStep(AdConfigStep.Budget);
+  };
+
+  const handlePaymentComplete = () => {
+    setTimeout(() => {
+      setShowSponsorDialog(false);
+      toast({
+        title: "Anúncio pago criado",
+        description: "Seu anúncio será revisado e ficará disponível em breve.",
+      });
+      setAdConfigStep(AdConfigStep.PropertySelection);
+      setSelectedProperty(null);
+    }, 500);
+  };
+
+  const handleCloseSponsorDialog = () => {
     setShowSponsorDialog(false);
+    setAdConfigStep(AdConfigStep.PropertySelection);
+    setSelectedProperty(null);
   };
 
   if (isLoading && !profile) {
@@ -204,6 +250,51 @@ const ProfilePage = () => {
       </div>
     );
   }
+
+  const renderAdConfigContent = () => {
+    switch (adConfigStep) {
+      case AdConfigStep.PropertySelection:
+        return (
+          <PropertySelection 
+            onSelectProperty={handleSelectProperty} 
+            onCancel={handleCloseSponsorDialog} 
+          />
+        );
+      case AdConfigStep.Budget:
+        return selectedProperty ? (
+          <BudgetConfiguration 
+            property={selectedProperty} 
+            onPrevious={handleAdBudgetPrevious} 
+            onNext={handleAdBudgetNext} 
+          />
+        ) : null;
+      case AdConfigStep.Payment:
+        return selectedProperty ? (
+          <PaymentConfirmation 
+            property={selectedProperty} 
+            days={adDays} 
+            amount={adAmount} 
+            onPrevious={handlePaymentPrevious} 
+            onComplete={handlePaymentComplete} 
+          />
+        ) : null;
+      default:
+        return null;
+    }
+  };
+
+  const getDialogTitle = () => {
+    switch (adConfigStep) {
+      case AdConfigStep.PropertySelection:
+        return "Selecione um imóvel para anunciar";
+      case AdConfigStep.Budget:
+        return "Configure seu orçamento";
+      case AdConfigStep.Payment:
+        return "Pagamento";
+      default:
+        return "";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 animate-fade-in">
@@ -355,7 +446,7 @@ const ProfilePage = () => {
                       className="flex items-center gap-2"
                       onClick={handleSponsorClick}
                     >
-                      <Award size={16} className="text-blue-600" /> Seja patrocinado
+                      <Award size={16} className="text-blue-600" /> Anúncio pago
                     </Button>
                   )}
                 </CardHeader>
@@ -385,61 +476,24 @@ const ProfilePage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={showSponsorDialog} onOpenChange={setShowSponsorDialog}>
+      <Dialog open={showSponsorDialog} onOpenChange={handleCloseSponsorDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-center">
-              Ganhe visibilidade. Aumente suas vendas.
+              {getDialogTitle()}
             </DialogTitle>
-            <DialogDescription className="text-center pt-2">
-              Tenha seu perfil em destaque nas principais áreas da plataforma Movvi. 
-              Conquiste a confiança dos clientes e aumente suas chances de fechar negócio com mais rapidez.
-            </DialogDescription>
+            {adConfigStep === AdConfigStep.PropertySelection && (
+              <div className="text-center pt-2">
+                <p className="text-gray-600">
+                  Ganhe visibilidade. Aumente suas vendas.
+                </p>
+                <p className="text-gray-600">
+                  Tenha seu imóvel em destaque nas principais áreas da plataforma Movvi. Conquiste a confiança dos clientes e aumente suas chances de fechar negócio com mais rapidez.
+                </p>
+              </div>
+            )}
           </DialogHeader>
-          <div className="py-4">
-            <h3 className="text-lg font-semibold mb-4">Como funciona?</h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-start gap-2">
-                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  1
-                </div>
-                <div>
-                  <h4 className="font-medium">Preencha o formulário Movvi</h4>
-                  <p className="text-sm text-gray-600">Envie seus dados e manifeste seu interesse.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2">
-                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  2
-                </div>
-                <div>
-                  <h4 className="font-medium">Envie suas informações completas</h4>
-                  <p className="text-sm text-gray-600">Nossa equipe analisará seu perfil para garantir a qualidade dos destaques.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2">
-                <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  3
-                </div>
-                <div>
-                  <h4 className="font-medium">Seja um corretor patrocinado</h4>
-                  <p className="text-sm text-gray-600">Com o selo de destaque, seu perfil será priorizado em áreas estratégicas da plataforma.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleSponsorRedirect}
-            >
-              Tornar-me patrocinado <ExternalLink size={16} className="ml-1" />
-            </Button>
-          </DialogFooter>
+          {renderAdConfigContent()}
         </DialogContent>
       </Dialog>
     </div>
