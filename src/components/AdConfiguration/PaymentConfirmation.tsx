@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ClipboardCopy, Check, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { Property } from "@/services/properties";
+import { Property, markPropertyAsFeatured } from "@/services/properties";
 
 interface PaymentConfirmationProps {
   property: Property;
@@ -41,14 +41,27 @@ export function PaymentConfirmation({ property, days, amount, onPrevious, onComp
     }, 3000);
   };
   
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
     setLoading(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      // Mark the property as featured for the specified number of days
+      await markPropertyAsFeatured(property.id, days);
+      
+      // Simulate payment processing
+      setTimeout(() => {
+        setLoading(false);
+        setCompleted(true);
+      }, 2000);
+    } catch (error) {
+      console.error("Error marking property as featured:", error);
+      toast({ 
+        title: "Erro ao processar pagamento", 
+        description: "Tente novamente mais tarde.",
+        variant: "destructive" 
+      });
       setLoading(false);
-      setCompleted(true);
-    }, 2000);
+    }
   };
   
   useEffect(() => {

@@ -6,6 +6,7 @@ import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
 import { 
   getProperties, 
+  getFeaturedProperties,
   Property,
   PropertySearchParams
 } from "@/services/properties";
@@ -14,8 +15,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Index = () => {
   const [filter, setFilter] = useState("all");
   const [properties, setProperties] = useState<Property[]>([]);
+  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [searchParams, setSearchParams] = useState({
     query: "",
     location: { state: "", city: "" },
@@ -23,6 +26,23 @@ const Index = () => {
     propertyType: ""
   });
   const isMobile = useIsMobile();
+
+  // Fetch featured properties
+  useEffect(() => {
+    const fetchFeaturedProperties = async () => {
+      setFeaturedLoading(true);
+      try {
+        const data = await getFeaturedProperties();
+        setFeaturedProperties(data);
+      } catch (error) {
+        console.error("Erro ao buscar imóveis em destaque:", error);
+      } finally {
+        setFeaturedLoading(false);
+      }
+    };
+
+    fetchFeaturedProperties();
+  }, []);
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -113,11 +133,30 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Properties Section */}
+      {/* Featured Properties Section */}
+      <section className="py-12 px-4 bg-blue-50">
+        <div className="container mx-auto">
+          <h2 className="text-2xl font-bold mb-8">Imóveis em destaque</h2>
+
+          {featuredLoading ? (
+            <div className="flex justify-center items-center h-40">
+              <p>Carregando imóveis em destaque...</p>
+            </div>
+          ) : featuredProperties.length === 0 ? (
+            <div className="text-center py-10 animate-fade-in">
+              <p className="text-gray-600">Nenhum imóvel em destaque disponível no momento.</p>
+            </div>
+          ) : (
+            <PropertyList properties={featuredProperties} />
+          )}
+        </div>
+      </section>
+
+      {/* Available Properties Section */}
       <section className="py-12 px-4 bg-gray-50">
         <div className="container mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold mb-4 sm:mb-0">Imóveis em destaque</h2>
+            <h2 className="text-2xl font-bold mb-4 sm:mb-0">Imóveis disponíveis</h2>
             <div className="flex space-x-2 border rounded-lg overflow-hidden w-full sm:w-auto">
               <button
                 className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}

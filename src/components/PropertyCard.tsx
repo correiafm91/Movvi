@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Award } from "lucide-react";
 
 type PropertyCardProps = {
   id: string;
@@ -14,6 +15,7 @@ type PropertyCardProps = {
   baths?: number;
   squareMeters?: number;
   isForRent: boolean;
+  isFeatured?: boolean;
 };
 
 const PropertyCard = ({
@@ -26,6 +28,7 @@ const PropertyCard = ({
   baths,
   squareMeters,
   isForRent,
+  isFeatured,
 }: PropertyCardProps) => {
   return (
     <Link to={`/property/${id}`} className="block h-full">
@@ -36,9 +39,16 @@ const PropertyCard = ({
             alt={title}
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
           />
-          <Badge className="absolute top-2 right-2 bg-blue-600 text-black text-xs font-medium">
-            {isForRent ? "Aluguel" : "Venda"}
-          </Badge>
+          <div className="absolute top-2 right-2 flex flex-col gap-2">
+            <Badge className="bg-blue-600 text-black text-xs font-medium">
+              {isForRent ? "Aluguel" : "Venda"}
+            </Badge>
+            {isFeatured && (
+              <Badge className="bg-amber-500 text-white flex items-center gap-1 text-xs font-medium">
+                <Award size={14} /> Destaque
+              </Badge>
+            )}
+          </div>
         </div>
         <CardContent className="p-4 flex-1 flex flex-col">
           <h3 className="font-semibold text-lg mb-1 line-clamp-1">{title}</h3>

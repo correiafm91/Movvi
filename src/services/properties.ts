@@ -17,6 +17,8 @@ export interface Property {
   updated_at?: string;
   owner_id?: string;
   contact_phone?: string;
+  is_featured?: boolean;
+  is_featured_until?: string;
   images?: {
     id: string;
     image_url: string;
@@ -62,6 +64,35 @@ export async function getPropertyById(id: string): Promise<Property | null> {
   return property;
 }
 
+export async function getFeaturedProperties(): Promise<Property[]> {
+  const { data, error } = await supabase
+    .from('properties')
+    .select(`
+      *,
+      property_images (
+        id,
+        image_url,
+        property_id,
+        is_main
+      )
+    `)
+    .eq('is_featured', true)
+    .gt('is_featured_until', new Date().toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching featured properties:", error);
+    return [];
+  }
+
+  const properties = data.map(item => ({
+    ...item,
+    images: item.property_images || []
+  })) as Property[];
+
+  return properties;
+}
+
 export async function getProperties(params: PropertySearchParams = {}): Promise<Property[]> {
   let query = supabase
     .from('properties')
@@ -73,7 +104,8 @@ export async function getProperties(params: PropertySearchParams = {}): Promise<
         property_id,
         is_main
       )
-    `);
+    `)
+    .eq('is_featured', false);
 
   if (params.type && params.type !== 'all') {
     const isForRent = params.type === 'rent';
@@ -281,4 +313,24 @@ export async function getPropertiesByOwner(ownerId?: string): Promise<Property[]
     console.error("Unexpected error fetching properties:", error);
     return [];
   }
+}
+
+export async function markPropertyAsFeatured(propertyId: string, days: number): Promise<boolean> {
+  const featuredUntil = new Date();
+  featuredUntil.setDate(featuredUntil.getDate() + days);
+  
+  const { error } = await supabase
+    .from('properties')
+    .update({
+      is_featured: true,
+      is_featured_until: featuredUntil.toISOString()
+    })
+    .eq('id', propertyId);
+
+  if (error) {
+    console.error("Error marking property as featured:", error);
+    return false;
+  }
+
+  return true;
 }
