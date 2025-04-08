@@ -28,11 +28,15 @@ import {
 import Navbar from "@/components/Navbar";
 import MyProperties from "@/components/MyProperties";
 import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
-import { Award, Calendar, MapPin } from "lucide-react";
+import { Award, BadgeCheck, Calendar, MapPin, Trophy } from "lucide-react";
 import { Property } from "@/services/properties";
 import { PropertySelection } from "@/components/AdConfiguration/PropertySelection";
 import { BudgetConfiguration } from "@/components/AdConfiguration/BudgetConfiguration";
 import { PaymentConfirmation } from "@/components/AdConfiguration/PaymentConfirmation";
+import { BadgeOverlay } from "@/components/gamification/BadgeOverlay";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
+import { MissionsList } from "@/components/gamification/MissionsList";
+import { BadgeCustomizer } from "@/components/gamification/BadgeCustomizer";
 
 enum AdConfigStep {
   PropertySelection,
@@ -59,6 +63,8 @@ const ProfilePage = () => {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [adDays, setAdDays] = useState(1);
   const [adAmount, setAdAmount] = useState(50);
+  const [showMissionsDialog, setShowMissionsDialog] = useState(false);
+  const [showBadgeDialog, setShowBadgeDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -253,6 +259,18 @@ const ProfilePage = () => {
     setSelectedProperty(null);
   };
 
+  const handleOpenMissions = () => {
+    setShowMissionsDialog(true);
+  };
+
+  const handleOpenBadgeCustomizer = () => {
+    setShowBadgeDialog(true);
+  };
+
+  const handleProfileUpdate2 = (updatedProfile: Profile) => {
+    setProfile(updatedProfile);
+  };
+
   if (isLoading && !profile) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -325,17 +343,30 @@ const ProfilePage = () => {
             <TabsContent value="profile" className="animate-fade-in">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl">Perfil do Usuário</CardTitle>
+                  <CardTitle className="text-2xl flex items-center justify-between">
+                    <span>Perfil do Usuário</span>
+                    {profile?.is_realtor && (
+                      <div className="flex items-center gap-2">
+                        <LevelBadge 
+                          level={profile?.level_id || 1} 
+                          showIcon={true} 
+                          className="animate-fade-in"
+                        />
+                      </div>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
                     <div className="flex flex-col items-center gap-2">
-                      <Avatar className="w-28 h-28 border-2 border-gray-200">
-                        <AvatarImage src={photoUrl} />
-                        <AvatarFallback className="text-2xl">
-                          {name ? name.charAt(0).toUpperCase() : "U"}
-                        </AvatarFallback>
-                      </Avatar>
+                      <BadgeOverlay
+                        imageUrl={photoUrl}
+                        name={name}
+                        level={profile?.level_id || 1}
+                        showBadge={Boolean(profile?.is_realtor && profile?.display_badge)}
+                        size="lg"
+                      />
+                      
                       {isEditing && (
                         <div>
                           <Label 
@@ -352,6 +383,30 @@ const ProfilePage = () => {
                             onChange={handlePhotoChange} 
                             disabled={isLoading}
                           />
+                        </div>
+                      )}
+                      
+                      {!isEditing && profile?.is_realtor && (
+                        <div className="flex flex-col gap-2 mt-2 w-full">
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 text-blue-600"
+                            onClick={handleOpenBadgeCustomizer}
+                          >
+                            <BadgeCheck size={16} />
+                            Personalizar foto
+                          </Button>
+                          
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 text-blue-600"
+                            onClick={handleOpenMissions}
+                          >
+                            <Trophy size={16} />
+                            Missões
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -555,6 +610,35 @@ const ProfilePage = () => {
             )}
           </DialogHeader>
           {renderAdConfigContent()}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Missions Dialog */}
+      <Dialog open={showMissionsDialog} onOpenChange={setShowMissionsDialog}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+              <Trophy size={20} className="text-blue-600" />
+              Missões e Conquistas
+            </DialogTitle>
+            <div className="text-center text-sm text-gray-500 mt-2">
+              Complete missões para subir de nível e conquistar reconhecimento na plataforma
+            </div>
+          </DialogHeader>
+          {profile && <MissionsList profile={profile} onCloseDialog={() => setShowMissionsDialog(false)} />}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Badge Customizer Dialog */}
+      <Dialog open={showBadgeDialog} onOpenChange={setShowBadgeDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          {profile && (
+            <BadgeCustomizer 
+              profile={profile} 
+              onClose={() => setShowBadgeDialog(false)} 
+              onUpdate={handleProfileUpdate2}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
