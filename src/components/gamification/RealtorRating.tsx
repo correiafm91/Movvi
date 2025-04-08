@@ -36,7 +36,7 @@ export function RealtorRating({ realtorId, realtorName, currentRating = 0, viewO
         throw error;
       }
       
-      const currentRatings = data.positive_ratings || 0;
+      const currentRatings = data?.positive_ratings || 0;
       
       await supabase
         .from('profiles')
