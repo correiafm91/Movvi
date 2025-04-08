@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
+import { Button } from "@/components/ui/button";
 import { 
   getProperties, 
   getFeaturedProperties,
@@ -11,14 +12,31 @@ import {
   PropertySearchParams
 } from "@/services/properties";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ChevronRight } from "lucide-react";
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PROPERTIES_PER_PAGE = 15;
+const FEATURED_INITIAL_LIMIT = 4;
 
 const Index = () => {
   const [filter, setFilter] = useState("all");
   const [properties, setProperties] = useState<Property[]>([]);
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
+  const [visibleFeaturedProperties, setVisibleFeaturedProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [visibleProperties, setVisibleProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showAllFeatured, setShowAllFeatured] = useState(false);
   const [searchParams, setSearchParams] = useState({
     query: "",
     location: { state: "", city: "" },
@@ -34,6 +52,7 @@ const Index = () => {
       try {
         const data = await getFeaturedProperties();
         setFeaturedProperties(data);
+        setVisibleFeaturedProperties(data.slice(0, FEATURED_INITIAL_LIMIT));
       } catch (error) {
         console.error("Erro ao buscar imóveis em destaque:", error);
       } finally {
@@ -88,9 +107,27 @@ const Index = () => {
           );
           setProperties(data);
           setFilteredProperties(filtered);
+          
+          // Update pagination
+          const filteredTotal = Math.ceil(filtered.length / PROPERTIES_PER_PAGE);
+          setTotalPages(filteredTotal > 0 ? filteredTotal : 1);
+          
+          // Update visible properties based on current page
+          const startIdx = (currentPage - 1) * PROPERTIES_PER_PAGE;
+          const endIdx = startIdx + PROPERTIES_PER_PAGE;
+          setVisibleProperties(filtered.slice(startIdx, endIdx));
         } else {
           setProperties(data);
           setFilteredProperties(data);
+          
+          // Update pagination
+          const total = Math.ceil(data.length / PROPERTIES_PER_PAGE);
+          setTotalPages(total > 0 ? total : 1);
+          
+          // Update visible properties based on current page
+          const startIdx = (currentPage - 1) * PROPERTIES_PER_PAGE;
+          const endIdx = startIdx + PROPERTIES_PER_PAGE;
+          setVisibleProperties(data.slice(startIdx, endIdx));
         }
       } catch (error) {
         console.error("Erro ao buscar imóveis:", error);
@@ -100,7 +137,7 @@ const Index = () => {
     };
 
     fetchProperties();
-  }, [filter, searchParams]);
+  }, [filter, searchParams, currentPage]);
 
   const handleSearch = (
     query: string, 
@@ -108,7 +145,25 @@ const Index = () => {
     priceRange: { min: number | null; max: number | null },
     propertyType: string
   ) => {
+    setCurrentPage(1); // Reset to first page on new search
     setSearchParams({ query, location, priceRange, propertyType });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleShowAllFeatured = () => {
+    setShowAllFeatured(true);
+    setVisibleFeaturedProperties(featuredProperties);
+  };
+
+  const loadMoreProperties = () => {
+    const startIdx = visibleProperties.length;
+    const endIdx = startIdx + PROPERTIES_PER_PAGE;
+    const newVisibleProperties = filteredProperties.slice(0, endIdx);
+    setVisibleProperties(newVisibleProperties);
   };
 
   return (
@@ -136,18 +191,52 @@ const Index = () => {
       {/* Featured Properties Section */}
       <section className="py-12 px-4 bg-blue-50">
         <div className="container mx-auto">
-          <h2 className="text-2xl font-bold mb-8">Imóveis em destaque</h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold">Imóveis em destaque</h2>
+            {featuredProperties.length > FEATURED_INITIAL_LIMIT && !showAllFeatured && (
+              <Button 
+                variant="outline" 
+                className="flex items-center"
+                onClick={handleShowAllFeatured}
+              >
+                Ver mais <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            )}
+          </div>
 
           {featuredLoading ? (
             <div className="flex justify-center items-center h-40">
               <p>Carregando imóveis em destaque...</p>
             </div>
-          ) : featuredProperties.length === 0 ? (
+          ) : visibleFeaturedProperties.length === 0 ? (
             <div className="text-center py-10 animate-fade-in">
               <p className="text-gray-600">Nenhum imóvel em destaque disponível no momento.</p>
             </div>
           ) : (
-            <PropertyList properties={featuredProperties} />
+            <div className="flex flex-nowrap overflow-x-auto pb-4 gap-6">
+              {visibleFeaturedProperties.map((property) => {
+                const mainImage = property.images?.find(img => img.is_main)?.image_url || 
+                                property.images?.[0]?.image_url || 
+                                '/placeholder.svg';
+                
+                return (
+                  <div key={property.id} className="animate-fade-in w-72 min-w-72 flex-shrink-0">
+                    <PropertyCard
+                      id={property.id}
+                      title={property.title}
+                      price={property.price}
+                      location={`${property.city}, ${property.state}`}
+                      beds={property.bedrooms}
+                      baths={property.bathrooms}
+                      squareMeters={property.area}
+                      imageUrl={mainImage}
+                      isForRent={property.is_for_rent}
+                      isFeatured={property.is_featured}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </section>
@@ -160,19 +249,28 @@ const Index = () => {
             <div className="flex space-x-2 border rounded-lg overflow-hidden w-full sm:w-auto">
               <button
                 className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
-                onClick={() => setFilter('all')}
+                onClick={() => {
+                  setFilter('all');
+                  setCurrentPage(1);
+                }}
               >
                 Todos
               </button>
               <button
                 className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'buy' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
-                onClick={() => setFilter('buy')}
+                onClick={() => {
+                  setFilter('buy');
+                  setCurrentPage(1);
+                }}
               >
                 Comprar
               </button>
               <button
                 className={`px-4 py-2 text-sm flex-1 sm:flex-auto ${filter === 'rent' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
-                onClick={() => setFilter('rent')}
+                onClick={() => {
+                  setFilter('rent');
+                  setCurrentPage(1);
+                }}
               >
                 Alugar
               </button>
@@ -183,7 +281,7 @@ const Index = () => {
             <div className="flex justify-center items-center h-40">
               <p>Carregando imóveis...</p>
             </div>
-          ) : filteredProperties.length === 0 ? (
+          ) : visibleProperties.length === 0 ? (
             <div className="text-center py-10 animate-fade-in">
               <h3 className="text-xl font-semibold mb-2">Nenhum imóvel encontrado</h3>
               <p className="text-gray-600 mb-6">Seja o primeiro a anunciar um imóvel!</p>
@@ -195,7 +293,96 @@ const Index = () => {
               </Link>
             </div>
           ) : (
-            <PropertyList properties={filteredProperties} />
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {visibleProperties.map((property) => {
+                  const mainImage = property.images?.find(img => img.is_main)?.image_url || 
+                                  property.images?.[0]?.image_url || 
+                                  '/placeholder.svg';
+                  
+                  return (
+                    <div key={property.id} className="animate-fade-in">
+                      <PropertyCard
+                        id={property.id}
+                        title={property.title}
+                        price={property.price}
+                        location={`${property.city}, ${property.state}`}
+                        beds={property.bedrooms}
+                        baths={property.bathrooms}
+                        squareMeters={property.area}
+                        imageUrl={mainImage}
+                        isForRent={property.is_for_rent}
+                        isFeatured={property.is_featured}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {filteredProperties.length > PROPERTIES_PER_PAGE && (
+                <div className="mt-10 flex justify-center">
+                  <Pagination>
+                    <PaginationContent>
+                      {currentPage > 1 && (
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(currentPage - 1);
+                            }}
+                          />
+                        </PaginationItem>
+                      )}
+                      
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        let pageNumber = i + 1;
+                        
+                        // If we have more than 5 pages and we're not at the start
+                        if (totalPages > 5 && currentPage > 3) {
+                          pageNumber = currentPage - 3 + i;
+                          
+                          // Make sure we don't go over the total
+                          if (pageNumber > totalPages) {
+                            pageNumber = totalPages - (4 - i);
+                          }
+                        }
+                        
+                        // Don't display if page number is invalid
+                        if (pageNumber <= 0 || pageNumber > totalPages) return null;
+                        
+                        return (
+                          <PaginationItem key={pageNumber}>
+                            <PaginationLink
+                              href="#"
+                              isActive={pageNumber === currentPage}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handlePageChange(pageNumber);
+                              }}
+                            >
+                              {pageNumber}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      
+                      {currentPage < totalPages && (
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(currentPage + 1);
+                            }}
+                          />
+                        </PaginationItem>
+                      )}
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -240,41 +427,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
-};
-
-const PropertyList = ({ properties }: { properties: Property[] }) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {properties.length > 0 ? (
-        properties.map((property) => {
-          const mainImage = property.images?.find(img => img.is_main)?.image_url || 
-                           property.images?.[0]?.image_url || 
-                           '/placeholder.svg';
-          
-          return (
-            <div key={property.id} className="animate-fade-in">
-              <PropertyCard
-                id={property.id}
-                title={property.title}
-                price={property.price}
-                location={`${property.city}, ${property.state}`}
-                beds={property.bedrooms}
-                baths={property.bathrooms}
-                squareMeters={property.area}
-                imageUrl={mainImage}
-                isForRent={property.is_for_rent}
-                isFeatured={property.is_featured}
-              />
-            </div>
-          );
-        })
-      ) : (
-        <div className="col-span-full text-center py-10">
-          <p className="text-lg text-gray-500">Nenhum imóvel encontrado.</p>
-        </div>
-      )}
     </div>
   );
 };

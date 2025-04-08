@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -19,6 +20,9 @@ export type Profile = {
   photo_url?: string;
   is_realtor?: boolean;
   creci_code?: string | null;
+  work_state?: string | null;
+  work_city?: string | null;
+  scheduling_link?: string | null;
 };
 
 export async function signUp({ email, password }: AuthSignUpCredentials) {
@@ -144,7 +148,7 @@ export async function uploadProfilePhoto(file: File): Promise<{ url: string | nu
 export async function getRealtorInfo(userId: string): Promise<{ profile: Profile | null, error: Error | null }> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('name, photo_url, creci_code, is_realtor')
+    .select('name, photo_url, creci_code, is_realtor, work_state, work_city, scheduling_link')
     .eq('id', userId)
     .single();
 

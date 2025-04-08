@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +28,7 @@ import {
 import Navbar from "@/components/Navbar";
 import MyProperties from "@/components/MyProperties";
 import { getProfile, signOut, updateProfile, uploadProfilePhoto, Profile } from "@/services/auth";
-import { Award } from "lucide-react";
+import { Award, Calendar, MapPin } from "lucide-react";
 import { Property } from "@/services/properties";
 import { PropertySelection } from "@/components/AdConfiguration/PropertySelection";
 import { BudgetConfiguration } from "@/components/AdConfiguration/BudgetConfiguration";
@@ -45,6 +46,9 @@ const ProfilePage = () => {
   const [phone, setPhone] = useState("");
   const [isRealtor, setIsRealtor] = useState(false);
   const [creciCode, setCreciCode] = useState("");
+  const [workState, setWorkState] = useState("");
+  const [workCity, setWorkCity] = useState("");
+  const [schedulingLink, setSchedulingLink] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,6 +81,9 @@ const ProfilePage = () => {
         if (profile.photo_url) setPhotoUrl(profile.photo_url);
         if (profile.is_realtor !== undefined) setIsRealtor(profile.is_realtor);
         if (profile.creci_code) setCreciCode(profile.creci_code);
+        if (profile.work_state) setWorkState(profile.work_state);
+        if (profile.work_city) setWorkCity(profile.work_city);
+        if (profile.scheduling_link) setSchedulingLink(profile.scheduling_link);
         
         if (!profile.name || !profile.phone) {
           setIsEditing(true);
@@ -117,6 +124,9 @@ const ProfilePage = () => {
         phone,
         is_realtor: isRealtor,
         creci_code: isRealtor ? creciCode : null,
+        work_state: isRealtor ? workState : null,
+        work_city: isRealtor ? workCity : null,
+        scheduling_link: isRealtor ? schedulingLink : null,
         photo_url: photoUrl || undefined,
       });
       
@@ -129,6 +139,9 @@ const ProfilePage = () => {
             phone,
             is_realtor: isRealtor,
             creci_code: isRealtor ? creciCode : null,
+            work_state: isRealtor ? workState : null,
+            work_city: isRealtor ? workCity : null,
+            scheduling_link: isRealtor ? schedulingLink : null,
             photo_url: photoUrl || undefined,
           };
         });
@@ -387,16 +400,64 @@ const ProfilePage = () => {
                       </div>
                       
                       {isRealtor && (
-                        <div className="space-y-2 pt-2">
-                          <Label htmlFor="creci">Código CRECI</Label>
-                          <Input
-                            id="creci"
-                            value={creciCode}
-                            onChange={(e) => setCreciCode(e.target.value)}
-                            disabled={!isEditing || isLoading}
-                            placeholder="Seu código CRECI"
-                          />
-                        </div>
+                        <>
+                          <div className="space-y-2 pt-2">
+                            <Label htmlFor="creci">Código CRECI</Label>
+                            <Input
+                              id="creci"
+                              value={creciCode}
+                              onChange={(e) => setCreciCode(e.target.value)}
+                              disabled={!isEditing || isLoading}
+                              placeholder="Seu código CRECI"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="workState" className="flex items-center">
+                                <MapPin size={16} className="mr-1" /> Estado de atuação
+                              </Label>
+                              <Input
+                                id="workState"
+                                value={workState}
+                                onChange={(e) => setWorkState(e.target.value)}
+                                disabled={!isEditing || isLoading}
+                                placeholder="Ex: São Paulo"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="workCity" className="flex items-center">
+                                <MapPin size={16} className="mr-1" /> Cidade de atuação
+                              </Label>
+                              <Input
+                                id="workCity"
+                                value={workCity}
+                                onChange={(e) => setWorkCity(e.target.value)}
+                                disabled={!isEditing || isLoading}
+                                placeholder="Ex: São Paulo"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="schedulingLink" className="flex items-center">
+                              <Calendar size={16} className="mr-1" /> Link para agendamento
+                            </Label>
+                            <Input
+                              id="schedulingLink"
+                              value={schedulingLink}
+                              onChange={(e) => setSchedulingLink(e.target.value)}
+                              disabled={!isEditing || isLoading}
+                              placeholder="Ex: https://calendly.com/seu-nome"
+                            />
+                            {schedulingLink && isEditing && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Você pode usar serviços como Calendly, Google Calendar ou outros para criar um link de agendamento.
+                              </p>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
