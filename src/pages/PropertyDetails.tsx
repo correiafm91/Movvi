@@ -33,7 +33,8 @@ import {
   Mail,
   MessageSquare,
   Copy,
-  User
+  User,
+  Clock
 } from "lucide-react";
 import { getPropertyById, Property } from "@/services/properties";
 import { getRealtorInfo } from "@/services/auth";
@@ -44,6 +45,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatTimeAgo } from "@/lib/utils";
 
 const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -338,9 +340,12 @@ const PropertyDetails = () => {
                     <Badge className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs rounded-full mb-2">
                       {property.is_for_rent ? 'ALUGUEL' : 'VENDA'}
                     </Badge>
-                    <p className="text-sm text-gray-500">
-                      Anunciado em {new Date(property.created_at || "").toLocaleDateString('pt-BR')}
-                    </p>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                      <Clock size={14} />
+                      <p>
+                        Anunciado {property.created_at ? formatTimeAgo(new Date(property.created_at)) : "recentemente"}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
