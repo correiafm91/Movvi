@@ -21,7 +21,7 @@ const CreateListing = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contact, setContact] = useState("");
-  const [location, setLocation] = useState({ state: "", city: "" });
+  const [propertyLocation, setPropertyLocation] = useState({ state: "", city: "" });
   const [propertyType, setPropertyType] = useState("Apartamento");
   const [bedrooms, setBedrooms] = useState("");
   const [bathrooms, setBathrooms] = useState("");
@@ -30,7 +30,7 @@ const CreateListing = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
+  const currentLocation = useLocation();
   const [showAdModal, setShowAdModal] = useState(false);
 
   useEffect(() => {
@@ -97,7 +97,7 @@ const CreateListing = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title || !description || !price || !contact || !location.state || !location.city || photos.length === 0) {
+    if (!title || !description || !price || !contact || !propertyLocation.state || !propertyLocation.city || photos.length === 0) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos e adicione pelo menos uma foto.",
@@ -113,8 +113,8 @@ const CreateListing = () => {
         title,
         description,
         price: Number(price.replace(/\D/g, '')) / 100,
-        state: location.state,
-        city: location.city,
+        state: propertyLocation.state,
+        city: propertyLocation.city,
         property_type: propertyType,
         bedrooms: bedrooms ? parseInt(bedrooms) : undefined,
         bathrooms: bathrooms ? parseInt(bathrooms) : undefined,
@@ -343,7 +343,7 @@ const CreateListing = () => {
               
               <div className="space-y-2">
                 <Label>Localização</Label>
-                <LocationSelector onLocationChange={setLocation} disabled={isLoading} />
+                <LocationSelector onLocationChange={setPropertyLocation} disabled={isLoading} />
               </div>
               
               <div className="space-y-2">
