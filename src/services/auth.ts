@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -23,6 +22,12 @@ export type Profile = {
   work_state?: string | null;
   work_city?: string | null;
   scheduling_link?: string | null;
+  level_id?: number | null;
+  property_count?: number | null;
+  ad_count?: number | null;
+  positive_ratings?: number | null;
+  display_badge?: boolean | null;
+  completed_missions?: string[] | null;
 };
 
 export async function signUp({ email, password }: AuthSignUpCredentials) {

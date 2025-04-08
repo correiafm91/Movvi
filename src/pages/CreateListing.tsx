@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import LocationSelector from "@/components/LocationSelector";
 import Navbar from "@/components/Navbar";
+import FirstPropertyAdModal from "@/components/FirstPropertyAdModal";
 import { getProfile } from "@/services/auth";
 import { createProperty } from "@/services/properties";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,8 @@ const CreateListing = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showAdModal, setShowAdModal] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -44,7 +46,6 @@ const CreateListing = () => {
         return;
       }
 
-      // Buscar perfil do usuário para pré-preencher contato
       const { profile } = await getProfile();
       if (profile?.phone) {
         setContact(profile.phone);
@@ -59,7 +60,6 @@ const CreateListing = () => {
     
     if (!files) return;
     
-    // Limitar a 10 imagens
     if (photos.length + files.length > 10) {
       toast({
         title: "Limite de fotos",
@@ -85,7 +85,6 @@ const CreateListing = () => {
     const newPhotos = [...photos];
     const newPreviews = [...photoPreviews];
     
-    // Liberar URL do objeto
     URL.revokeObjectURL(newPreviews[index]);
     
     newPhotos.splice(index, 1);
@@ -98,7 +97,6 @@ const CreateListing = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar formulário
     if (!title || !description || !price || !contact || !location.state || !location.city || photos.length === 0) {
       toast({
         title: "Campos obrigatórios",
@@ -114,7 +112,7 @@ const CreateListing = () => {
       const propertyData = {
         title,
         description,
-        price: Number(price.replace(/\D/g, '')) / 100, // Converter para número
+        price: Number(price.replace(/\D/g, '')) / 100,
         state: location.state,
         city: location.city,
         property_type: propertyType,
@@ -134,8 +132,12 @@ const CreateListing = () => {
           description: "Seu imóvel foi anunciado com sucesso!",
         });
         
-        // Redirecionar para a página inicial
-        navigate("/");
+        const { profile } = await getProfile();
+        if (profile && (!profile.property_count || profile.property_count === 1)) {
+          setShowAdModal(true);
+        } else {
+          navigate("/");
+        }
       } else {
         throw result.error || new Error("Erro ao criar anúncio");
       }
@@ -151,15 +153,12 @@ const CreateListing = () => {
     }
   };
 
-  // Função para formatar o preço
   const formatPrice = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     
-    // Converter para centavos e depois formatar
     const cents = parseInt(numbers);
     if (isNaN(cents)) return '';
     
-    // Formatar o número com separadores
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -183,7 +182,6 @@ const CreateListing = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Photo upload */}
               <div className="space-y-2">
                 <Label htmlFor="photos">Fotos do imóvel</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -235,7 +233,6 @@ const CreateListing = () => {
                 </p>
               </div>
               
-              {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Título do anúncio</Label>
                 <Input
@@ -247,7 +244,6 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição detalhada</Label>
                 <Textarea
@@ -260,7 +256,6 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Property type */}
               <div className="space-y-2">
                 <Label htmlFor="propertyType">Tipo do imóvel</Label>
                 <select
@@ -280,7 +275,6 @@ const CreateListing = () => {
                 </select>
               </div>
               
-              {/* Property details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bedrooms">Quartos</Label>
@@ -316,7 +310,6 @@ const CreateListing = () => {
                 </div>
               </div>
               
-              {/* Listing type */}
               <div className="space-y-2">
                 <Label>Tipo de anúncio</Label>
                 <RadioGroup
@@ -335,7 +328,6 @@ const CreateListing = () => {
                 </RadioGroup>
               </div>
               
-              {/* Price */}
               <div className="space-y-2">
                 <Label htmlFor="price">
                   Preço {listingType === "rent" ? "(mensal)" : ""}
@@ -349,13 +341,11 @@ const CreateListing = () => {
                 />
               </div>
               
-              {/* Location */}
               <div className="space-y-2">
                 <Label>Localização</Label>
                 <LocationSelector onLocationChange={setLocation} disabled={isLoading} />
               </div>
               
-              {/* Contact */}
               <div className="space-y-2">
                 <Label htmlFor="contact">Telefone para contato</Label>
                 <Input
@@ -374,6 +364,8 @@ const CreateListing = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <FirstPropertyAdModal open={showAdModal} onOpenChange={setShowAdModal} />
     </div>
   );
 };
