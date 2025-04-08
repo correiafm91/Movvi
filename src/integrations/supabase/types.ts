@@ -11,64 +11,37 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
-          ad_count: number | null
-          completed_missions: string[] | null
           created_at: string | null
           creci_code: string | null
-          display_badge: boolean | null
           email: string
           id: string
           is_realtor: boolean | null
-          level_id: number | null
           name: string | null
           phone: string | null
           photo_url: string | null
-          positive_ratings: number | null
-          property_count: number | null
-          scheduling_link: string | null
           updated_at: string | null
-          work_city: string | null
-          work_state: string | null
         }
         Insert: {
-          ad_count?: number | null
-          completed_missions?: string[] | null
           created_at?: string | null
           creci_code?: string | null
-          display_badge?: boolean | null
           email: string
           id: string
           is_realtor?: boolean | null
-          level_id?: number | null
           name?: string | null
           phone?: string | null
           photo_url?: string | null
-          positive_ratings?: number | null
-          property_count?: number | null
-          scheduling_link?: string | null
           updated_at?: string | null
-          work_city?: string | null
-          work_state?: string | null
         }
         Update: {
-          ad_count?: number | null
-          completed_missions?: string[] | null
           created_at?: string | null
           creci_code?: string | null
-          display_badge?: boolean | null
           email?: string
           id?: string
           is_realtor?: boolean | null
-          level_id?: number | null
           name?: string | null
           phone?: string | null
           photo_url?: string | null
-          positive_ratings?: number | null
-          property_count?: number | null
-          scheduling_link?: string | null
           updated_at?: string | null
-          work_city?: string | null
-          work_state?: string | null
         }
         Relationships: []
       }
