@@ -12,12 +12,14 @@ export type Database = {
       profiles: {
         Row: {
           ad_count: number | null
+          cnpj: string | null
           completed_missions: string[] | null
           created_at: string | null
           creci_code: string | null
           display_badge: boolean | null
           email: string
           id: string
+          is_agency: boolean | null
           is_realtor: boolean | null
           level_id: number | null
           name: string | null
@@ -32,12 +34,14 @@ export type Database = {
         }
         Insert: {
           ad_count?: number | null
+          cnpj?: string | null
           completed_missions?: string[] | null
           created_at?: string | null
           creci_code?: string | null
           display_badge?: boolean | null
           email: string
           id: string
+          is_agency?: boolean | null
           is_realtor?: boolean | null
           level_id?: number | null
           name?: string | null
@@ -52,12 +56,14 @@ export type Database = {
         }
         Update: {
           ad_count?: number | null
+          cnpj?: string | null
           completed_missions?: string[] | null
           created_at?: string | null
           creci_code?: string | null
           display_badge?: boolean | null
           email?: string
           id?: string
+          is_agency?: boolean | null
           is_realtor?: boolean | null
           level_id?: number | null
           name?: string | null
