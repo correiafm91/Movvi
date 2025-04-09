@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { Profile } from "./auth";
@@ -42,15 +41,12 @@ export interface ChatRoomWithDetails {
   unread_count: number;
 }
 
-// Get all chat rooms for the current user
 export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], error: Error | null }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Get rooms where the user is a participant
     let query;
     if (user) {
-      // Logged-in users query
       const { data: participantData, error: participantError } = await supabase
         .from('chat_participants')
         .select('chat_room_id')
@@ -67,7 +63,6 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
 
       const roomIds = participantData.map(p => p.chat_room_id);
 
-      // Get the chat rooms
       const { data: roomsData, error: roomsError } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -79,9 +74,7 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
         return { rooms: [], error: roomsError };
       }
 
-      // Enhance each room with its last message and participants
       const enhancedRooms: ChatRoomWithDetails[] = await Promise.all(roomsData.map(async (room) => {
-        // Get the last message
         const { data: lastMessageData } = await supabase
           .from('chat_messages')
           .select('*')
@@ -90,7 +83,6 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
           .limit(1)
           .single();
 
-        // Get unread count
         const { count: unreadCount } = await supabase
           .from('chat_messages')
           .select('*', { count: 'exact', head: true })
@@ -98,15 +90,12 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
           .eq('is_read', false)
           .neq('sender_id', user.id);
 
-        // Get participants
         const { data: participants } = await supabase
           .from('chat_participants')
           .select('*');
 
-        // Filter participants for this chat room
         const roomParticipants = participants?.filter(p => p.chat_room_id === room.id) || [];
 
-        // Get profiles for participants
         const enhancedParticipants = await Promise.all(roomParticipants.map(async (p) => {
           if (p.user_id && p.user_id !== user.id) {
             const { data: profileData } = await supabase
@@ -120,7 +109,6 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
           return p;
         }));
 
-        // Get the property associated with this chat
         const propertyParticipant = roomParticipants.find(p => p.property_id);
         const property_id = propertyParticipant?.property_id;
 
@@ -135,7 +123,6 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
 
       return { rooms: enhancedRooms, error: null };
     } else {
-      // No rooms for anonymous users, they can only chat through property details
       return { rooms: [], error: null };
     }
   } catch (error) {
@@ -144,7 +131,6 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
   }
 };
 
-// Get messages for a specific chat room
 export const getChatMessages = async (roomId: string): Promise<{ messages: ChatMessage[], error: Error | null }> => {
   try {
     const { data, error } = await supabase
@@ -165,12 +151,10 @@ export const getChatMessages = async (roomId: string): Promise<{ messages: ChatM
   }
 };
 
-// Send a message in a chat room
 export const sendMessage = async (roomId: string, message: string, propertyId?: string | null): Promise<{ success: boolean, error: Error | null }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Get the anonymous name from chat participant if user is not logged in
     let anonymousName = null;
     if (!user) {
       const { data: participant } = await supabase
@@ -199,7 +183,6 @@ export const sendMessage = async (roomId: string, message: string, propertyId?: 
       return { success: false, error };
     }
 
-    // Update the last_message_at timestamp in the chat room
     await supabase
       .from('chat_rooms')
       .update({ last_message_at: new Date().toISOString() })
@@ -212,7 +195,6 @@ export const sendMessage = async (roomId: string, message: string, propertyId?: 
   }
 };
 
-// Mark messages as read
 export const markMessagesAsRead = async (roomId: string): Promise<{ success: boolean, error: Error | null }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -235,17 +217,14 @@ export const markMessagesAsRead = async (roomId: string): Promise<{ success: boo
   }
 };
 
-// Start a chat with a property owner
 export const startChatWithPropertyOwner = async (
   propertyId: string, 
   initialMessage: string,
   visitorName?: string
 ): Promise<{ roomId: string | null, error: Error | null }> => {
   try {
-    // Get the user ID
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Get property details to know the owner
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('owner_id')
@@ -259,10 +238,8 @@ export const startChatWithPropertyOwner = async (
 
     const ownerId = property.owner_id;
     
-    // Check if there's already a chat room between these users for this property
     let existingChat = null;
     if (user) {
-      // For logged-in users
       const { data } = await supabase
         .from('chat_participants')
         .select('chat_room_id')
@@ -270,13 +247,20 @@ export const startChatWithPropertyOwner = async (
         .eq('user_id', user.id);
       
       existingChat = data && data.length > 0 ? data[0] : null;
+    } else if (visitorName) {
+      const { data } = await supabase
+        .from('chat_participants')
+        .select('chat_room_id')
+        .eq('property_id', propertyId)
+        .eq('anonymous_name', visitorName)
+        .is('user_id', null);
+      
+      existingChat = data && data.length > 0 ? data[0] : null;
     }
     
     let roomId = existingChat ? existingChat.chat_room_id : null;
 
-    // If no existing chat, create a new one
     if (!roomId) {
-      // Create a new chat room
       const { data: room, error: roomError } = await supabase
         .from('chat_rooms')
         .insert({})
@@ -290,30 +274,45 @@ export const startChatWithPropertyOwner = async (
 
       roomId = room.id;
 
-      // Add the property owner as a participant
-      await supabase
+      const ownerParticipantData = {
+        chat_room_id: roomId,
+        user_id: ownerId,
+        property_id: propertyId
+      };
+      
+      const { error: ownerParticipantError } = await supabase
         .from('chat_participants')
-        .insert({
-          chat_room_id: roomId,
-          user_id: ownerId,
-          property_id: propertyId
-        });
+        .insert(ownerParticipantData);
+        
+      if (ownerParticipantError) {
+        console.error("Error adding owner participant:", ownerParticipantError);
+        return { roomId: null, error: ownerParticipantError };
+      }
 
-      // Add the current user or anonymous visitor as a participant
-      await supabase
+      const visitorParticipantData = {
+        chat_room_id: roomId,
+        user_id: user?.id || null,
+        is_anonymous: !user,
+        anonymous_name: !user ? visitorName || "Visitante" : null,
+        property_id: propertyId
+      };
+      
+      const { error: visitorParticipantError } = await supabase
         .from('chat_participants')
-        .insert({
-          chat_room_id: roomId,
-          user_id: user?.id || null,
-          is_anonymous: !user,
-          anonymous_name: !user ? visitorName || "Visitante" : null,
-          property_id: propertyId
-        });
+        .insert(visitorParticipantData);
+        
+      if (visitorParticipantError) {
+        console.error("Error adding visitor participant:", visitorParticipantError);
+        return { roomId: null, error: visitorParticipantError };
+      }
     }
 
-    // Send the initial message
     if (initialMessage) {
-      await sendMessage(roomId, initialMessage, propertyId);
+      const { success, error: messageError } = await sendMessage(roomId, initialMessage, propertyId);
+      if (!success) {
+        console.error("Error sending initial message:", messageError);
+        return { roomId, error: messageError };
+      }
     }
 
     return { roomId, error: null };
@@ -323,19 +322,16 @@ export const startChatWithPropertyOwner = async (
   }
 };
 
-// Check if user is online based on last_active_at timestamp
 export const isUserOnline = (lastActiveAt: string | null): boolean => {
   if (!lastActiveAt) return false;
   
   const lastActive = new Date(lastActiveAt);
   const now = new Date();
   
-  // Consider user online if active in the last 5 minutes
   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
   return lastActive > fiveMinutesAgo;
 };
 
-// Update user's last active timestamp
 export const updateUserLastActive = async (): Promise<void> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -350,7 +346,6 @@ export const updateUserLastActive = async (): Promise<void> => {
   }
 };
 
-// Setup a realtime subscription for new messages
 export const subscribeToNewMessages = (
   roomId: string, 
   callback: (message: ChatMessage) => void
@@ -376,7 +371,6 @@ export const subscribeToNewMessages = (
   };
 };
 
-// Setup realtime subscription for user presence updates
 export const subscribeToUserPresence = (
   userId: string, 
   callback: (isOnline: boolean) => void

@@ -1,10 +1,10 @@
 
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { startChatWithPropertyOwner } from "@/services/chat";
 import { useUser } from "@/hooks/use-user";
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +77,7 @@ export default function ChatButton({
         setDialogOpen(false);
         setMessage("");
       } else {
-        throw error;
+        throw error || new Error("Erro ao iniciar conversa");
       }
     } catch (error) {
       console.error("Error starting chat:", error);
@@ -154,7 +154,7 @@ export default function ChatButton({
             </Button>
             <Button
               onClick={handleStartChat}
-              disabled={sending || !message.trim()}
+              disabled={sending || !message.trim() || (!user && !visitorName.trim())}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {sending ? "Enviando..." : "Enviar mensagem"}

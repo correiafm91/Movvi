@@ -56,6 +56,10 @@ export default function ChatMessage({ message, isOwnMessage }: ChatMessageProps)
         <Avatar className="w-8 h-8">
           {sender?.photo_url ? (
             <AvatarImage src={sender.photo_url} />
+          ) : message.is_anonymous ? (
+            <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
+              {(message.anonymous_name || "?").charAt(0).toUpperCase()}
+            </AvatarFallback>
           ) : (
             <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
               {sender?.name ? sender.name.charAt(0).toUpperCase() : "?"}
