@@ -40,7 +40,7 @@ export default function UserStatus({ userId, lastSeen }: UserStatusProps) {
           online ? "bg-green-500" : "bg-gray-300"
         }`}
       />
-      <span>
+      <span className="truncate">
         {online ? "Online" : lastSeen ? `Visto ${formatTimeAgo(new Date(lastSeen))}` : "Offline"}
       </span>
     </div>

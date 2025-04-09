@@ -1,6 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { Drawer, DrawerContent, DrawerTrigger, DrawerClose } from "@/components/ui/drawer";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger, 
+  SheetClose 
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +13,19 @@ import { ChatRoomWithDetails, getChatRooms } from "@/services/chat";
 import ChatList from "./ChatList";
 import ChatInterface from "./ChatInterface";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerTrigger, 
+  DrawerClose 
+} from "@/components/ui/drawer";
 
 export default function ChatDrawer() {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeChat, setActiveChat] = useState<ChatRoomWithDetails | null>(null);
+  const isMobile = useIsMobile();
 
   // Get total unread count
   useEffect(() => {
@@ -55,9 +68,59 @@ export default function ChatDrawer() {
     setActiveChat(null);
   };
 
+  // Using Sheet for desktop and Drawer for mobile
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="icon"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 border-none"
+          >
+            <MessageCircle className="h-6 w-6" />
+            {unreadCount > 0 && (
+              <Badge className="absolute -top-2 -right-2 bg-red-500 border-white border-2">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </Badge>
+            )}
+          </Button>
+        </DrawerTrigger>
+        
+        <DrawerContent className="h-[95vh] max-h-[95vh]">
+          <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-bold">
+                {activeChat ? "Conversa" : "Bate-papo"}
+              </h2>
+              <DrawerClose asChild>
+                <Button variant="ghost" size="icon">
+                  <X className="h-5 w-5" />
+                </Button>
+              </DrawerClose>
+            </div>
+            
+            <div className="flex-1 overflow-hidden">
+              {activeChat ? (
+                <ChatInterface 
+                  chatRoom={activeChat} 
+                  onBack={handleBack} 
+                  useFullHeight={true}
+                />
+              ) : (
+                <ChatList onSelectChat={handleSelectChat} />
+              )}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Desktop version with Sheet
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
         <Button 
           variant="outline" 
           size="icon"
@@ -70,19 +133,19 @@ export default function ChatDrawer() {
             </Badge>
           )}
         </Button>
-      </DrawerTrigger>
+      </SheetTrigger>
       
-      <DrawerContent className="h-[80vh] max-h-[80vh]">
-        <div className="p-4 h-full flex flex-col">
+      <SheetContent className="sm:max-w-md w-[90vw]">
+        <div className="h-full flex flex-col max-h-screen">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold">
               {activeChat ? "Conversa" : "Bate-papo"}
             </h2>
-            <DrawerClose asChild>
+            <SheetClose asChild>
               <Button variant="ghost" size="icon">
                 <X className="h-5 w-5" />
               </Button>
-            </DrawerClose>
+            </SheetClose>
           </div>
           
           <div className="flex-1 overflow-hidden">
@@ -96,7 +159,7 @@ export default function ChatDrawer() {
             )}
           </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -24,9 +24,10 @@ import UserStatus from "./UserStatus";
 interface ChatInterfaceProps {
   chatRoom: ChatRoomWithDetails;
   onBack: () => void;
+  useFullHeight?: boolean;
 }
 
-export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) {
+export default function ChatInterface({ chatRoom, onBack, useFullHeight = false }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -179,7 +180,7 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
   };
   
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className={`flex flex-col bg-white ${useFullHeight ? 'h-full' : ''}`}>
       {/* Chat header */}
       <div className="flex items-center p-4 border-b bg-blue-50">
         <Button 
@@ -241,7 +242,7 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
       )}
       
       {/* Messages area */}
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className={`flex-1 p-4 ${useFullHeight ? 'h-full' : ''}`}>
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-4 text-gray-500">Carregando mensagens...</div>
