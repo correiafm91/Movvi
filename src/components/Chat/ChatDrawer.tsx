@@ -27,6 +27,22 @@ export default function ChatDrawer() {
   const [activeChat, setActiveChat] = useState<ChatRoomWithDetails | null>(null);
   const isMobile = useIsMobile();
 
+  // Check for saved chat in localStorage on component mount
+  useEffect(() => {
+    const savedChatId = localStorage.getItem('activeChat');
+    if (savedChatId) {
+      const loadSavedChat = async () => {
+        const { rooms } = await getChatRooms();
+        const savedChat = rooms.find(room => room.id === savedChatId);
+        if (savedChat) {
+          setActiveChat(savedChat);
+        }
+      };
+      
+      loadSavedChat();
+    }
+  }, []);
+
   // Get total unread count
   useEffect(() => {
     const getUnreadCount = async () => {
@@ -60,12 +76,16 @@ export default function ChatDrawer() {
 
   const handleSelectChat = (chatRoom: ChatRoomWithDetails) => {
     setActiveChat(chatRoom);
+    // Save the active chat ID to localStorage
+    localStorage.setItem('activeChat', chatRoom.id);
     // Adjust unread count when selecting a chat
     setUnreadCount(prev => Math.max(0, prev - (chatRoom.unread_count || 0)));
   };
 
   const handleBack = () => {
     setActiveChat(null);
+    // Clear the saved chat from localStorage
+    localStorage.removeItem('activeChat');
   };
 
   // Using Sheet for desktop and Drawer for mobile

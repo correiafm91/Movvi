@@ -4,7 +4,7 @@ import { isUserOnline, subscribeToUserPresence } from "@/services/chat";
 import { formatTimeAgo } from "@/lib/utils";
 
 interface UserStatusProps {
-  userId: string;
+  userId: string | null | undefined;
   lastSeen: string | null | undefined;
 }
 
@@ -30,8 +30,14 @@ export default function UserStatus({ userId, lastSeen }: UserStatusProps) {
     }
   }, [userId, lastSeen]);
   
-  // If no userId is provided (anonymous user), don't show status
-  if (!userId) return null;
+  // If no userId is provided (anonymous user), show a default status
+  if (!userId) {
+    return (
+      <div className="flex items-center gap-1 text-xs">
+        <span className="text-gray-500">Visitante</span>
+      </div>
+    );
+  }
   
   return (
     <div className="flex items-center gap-1 text-xs">
