@@ -46,92 +46,98 @@ export interface ChatRoomWithDetails {
 export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], error: Error | null }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { rooms: [], error: new Error("User not authenticated") };
-    }
 
     // Get rooms where the user is a participant
-    const { data: participantData, error: participantError } = await supabase
-      .from('chat_participants')
-      .select('chat_room_id')
-      .eq('user_id', user.id);
-
-    if (participantError) {
-      console.error("Error fetching chat participants:", participantError);
-      return { rooms: [], error: participantError };
-    }
-
-    if (!participantData || participantData.length === 0) {
-      return { rooms: [], error: null };
-    }
-
-    const roomIds = participantData.map(p => p.chat_room_id);
-
-    // Get the chat rooms
-    const { data: roomsData, error: roomsError } = await supabase
-      .from('chat_rooms')
-      .select('*')
-      .in('id', roomIds)
-      .order('last_message_at', { ascending: false });
-
-    if (roomsError) {
-      console.error("Error fetching chat rooms:", roomsError);
-      return { rooms: [], error: roomsError };
-    }
-
-    // Enhance each room with its last message and participants
-    const enhancedRooms: ChatRoomWithDetails[] = await Promise.all(roomsData.map(async (room) => {
-      // Get the last message
-      const { data: lastMessageData } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('chat_room_id', room.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      // Get unread count
-      const { count: unreadCount } = await supabase
-        .from('chat_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('chat_room_id', room.id)
-        .eq('is_read', false)
-        .neq('sender_id', user.id);
-
-      // Get participants
-      const { data: participants } = await supabase
+    let query;
+    if (user) {
+      // Logged-in users query
+      const { data: participantData, error: participantError } = await supabase
         .from('chat_participants')
-        .select('*')
-        .eq('chat_room_id', room.id);
+        .select('chat_room_id')
+        .eq('user_id', user.id);
 
-      // Get profiles for participants
-      const enhancedParticipants = await Promise.all((participants || []).map(async (p) => {
-        if (p.user_id && p.user_id !== user.id) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', p.user_id)
-            .single();
-            
-          return { ...p, profile: profileData || undefined };
-        }
-        return p;
+      if (participantError) {
+        console.error("Error fetching chat participants:", participantError);
+        return { rooms: [], error: participantError };
+      }
+
+      if (!participantData || participantData.length === 0) {
+        return { rooms: [], error: null };
+      }
+
+      const roomIds = participantData.map(p => p.chat_room_id);
+
+      // Get the chat rooms
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .in('id', roomIds)
+        .order('last_message_at', { ascending: false });
+
+      if (roomsError) {
+        console.error("Error fetching chat rooms:", roomsError);
+        return { rooms: [], error: roomsError };
+      }
+
+      // Enhance each room with its last message and participants
+      const enhancedRooms: ChatRoomWithDetails[] = await Promise.all(roomsData.map(async (room) => {
+        // Get the last message
+        const { data: lastMessageData } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('chat_room_id', room.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Get unread count
+        const { count: unreadCount } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('chat_room_id', room.id)
+          .eq('is_read', false)
+          .neq('sender_id', user.id);
+
+        // Get participants
+        const { data: participants } = await supabase
+          .from('chat_participants')
+          .select('*');
+
+        // Filter participants for this chat room
+        const roomParticipants = participants?.filter(p => p.chat_room_id === room.id) || [];
+
+        // Get profiles for participants
+        const enhancedParticipants = await Promise.all(roomParticipants.map(async (p) => {
+          if (p.user_id && p.user_id !== user.id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', p.user_id)
+              .single();
+              
+            return { ...p, profile: profileData || undefined };
+          }
+          return p;
+        }));
+
+        // Get the property associated with this chat
+        const propertyParticipant = roomParticipants.find(p => p.property_id);
+        const property_id = propertyParticipant?.property_id;
+
+        return {
+          ...room,
+          last_message: lastMessageData || undefined,
+          participants: enhancedParticipants,
+          unread_count: unreadCount || 0,
+          property_id
+        };
       }));
 
-      // Get the property associated with this chat
-      const propertyParticipant = participants?.find(p => p.property_id);
-      const property_id = propertyParticipant?.property_id;
-
-      return {
-        ...room,
-        last_message: lastMessageData || undefined,
-        participants: enhancedParticipants,
-        unread_count: unreadCount || 0,
-        property_id
-      };
-    }));
-
-    return { rooms: enhancedRooms, error: null };
+      return { rooms: enhancedRooms, error: null };
+    } else {
+      // No rooms for anonymous users, they can only chat through property details
+      return { rooms: [], error: null };
+    }
   } catch (error) {
     console.error("Error in getChatRooms:", error);
     return { rooms: [], error: error as Error };
@@ -164,17 +170,26 @@ export const sendMessage = async (roomId: string, message: string, propertyId?: 
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (!user && !propertyId) {
-      return { success: false, error: new Error("User not authenticated and no property specified") };
+    // Get the anonymous name from chat participant if user is not logged in
+    let anonymousName = null;
+    if (!user) {
+      const { data: participant } = await supabase
+        .from('chat_participants')
+        .select('anonymous_name')
+        .eq('chat_room_id', roomId)
+        .is('user_id', null)
+        .single();
+      
+      anonymousName = participant?.anonymous_name || null;
     }
-
+    
     const { error } = await supabase
       .from('chat_messages')
       .insert({
         chat_room_id: roomId,
         sender_id: user?.id || null,
         is_anonymous: !user,
-        anonymous_name: !user ? "Visitante" : null,
+        anonymous_name: anonymousName,
         message,
         property_id: propertyId || null
       });
@@ -202,16 +217,11 @@ export const markMessagesAsRead = async (roomId: string): Promise<{ success: boo
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (!user) {
-      return { success: false, error: new Error("User not authenticated") };
-    }
-
     const { error } = await supabase
       .from('chat_messages')
       .update({ is_read: true })
       .eq('chat_room_id', roomId)
-      .neq('sender_id', user.id)
-      .eq('is_read', false);
+      .is('is_read', false);
 
     if (error) {
       console.error("Error marking messages as read:", error);
@@ -228,7 +238,8 @@ export const markMessagesAsRead = async (roomId: string): Promise<{ success: boo
 // Start a chat with a property owner
 export const startChatWithPropertyOwner = async (
   propertyId: string, 
-  initialMessage: string
+  initialMessage: string,
+  visitorName?: string
 ): Promise<{ roomId: string | null, error: Error | null }> => {
   try {
     // Get the user ID
@@ -249,13 +260,19 @@ export const startChatWithPropertyOwner = async (
     const ownerId = property.owner_id;
     
     // Check if there's already a chat room between these users for this property
-    const { data: existingChat } = await supabase
-      .from('chat_participants')
-      .select('chat_room_id')
-      .eq('property_id', propertyId)
-      .eq('user_id', user?.id || null);
+    let existingChat = null;
+    if (user) {
+      // For logged-in users
+      const { data } = await supabase
+        .from('chat_participants')
+        .select('chat_room_id')
+        .eq('property_id', propertyId)
+        .eq('user_id', user.id);
       
-    let roomId = existingChat && existingChat.length > 0 ? existingChat[0].chat_room_id : null;
+      existingChat = data && data.length > 0 ? data[0] : null;
+    }
+    
+    let roomId = existingChat ? existingChat.chat_room_id : null;
 
     // If no existing chat, create a new one
     if (!roomId) {
@@ -282,14 +299,14 @@ export const startChatWithPropertyOwner = async (
           property_id: propertyId
         });
 
-      // Add the current user or anonymous user as a participant
+      // Add the current user or anonymous visitor as a participant
       await supabase
         .from('chat_participants')
         .insert({
           chat_room_id: roomId,
           user_id: user?.id || null,
           is_anonymous: !user,
-          anonymous_name: !user ? "Visitante" : null,
+          anonymous_name: !user ? visitorName || "Visitante" : null,
           property_id: propertyId
         });
     }

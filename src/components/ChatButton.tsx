@@ -51,11 +51,22 @@ export default function ChatButton({
       return;
     }
 
+    // For anonymous users, require a name
+    if (!user && !visitorName.trim()) {
+      toast({
+        title: "Nome necessário",
+        description: "Por favor, digite seu nome para iniciar a conversa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSending(true);
     try {
       const { roomId, error } = await startChatWithPropertyOwner(
         propertyId,
-        message.trim()
+        message.trim(),
+        visitorName.trim()
       );
 
       if (roomId) {
@@ -81,13 +92,7 @@ export default function ChatButton({
   };
 
   const handleClick = () => {
-    if (!user) {
-      // For non-logged in users, open dialog to collect message and optional name
-      setDialogOpen(true);
-    } else {
-      // For logged in users, open dialog to collect message
-      setDialogOpen(true);
-    }
+    setDialogOpen(true);
   };
 
   return (
@@ -117,12 +122,13 @@ export default function ChatButton({
 
           {!user && (
             <div className="space-y-2">
-              <Label htmlFor="name">Seu nome (opcional)</Label>
+              <Label htmlFor="name">Seu nome</Label>
               <Input
                 id="name"
-                placeholder="Como deseja ser chamado?"
+                placeholder="Digite seu nome"
                 value={visitorName}
                 onChange={(e) => setVisitorName(e.target.value)}
+                required
               />
             </div>
           )}

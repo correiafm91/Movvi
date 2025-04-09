@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
 import { isUserOnline, subscribeToUserPresence } from "@/services/chat";
 import { formatTimeAgo } from "@/lib/utils";
 

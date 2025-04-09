@@ -54,10 +54,13 @@ export default function ChatMessage({ message, isOwnMessage }: ChatMessageProps)
     )}>
       {!isOwnMessage && (
         <Avatar className="w-8 h-8">
-          <AvatarImage src={sender?.photo_url} />
-          <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-            {sender?.name ? sender.name.charAt(0).toUpperCase() : "?"}
-          </AvatarFallback>
+          {sender?.photo_url ? (
+            <AvatarImage src={sender.photo_url} />
+          ) : (
+            <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
+              {sender?.name ? sender.name.charAt(0).toUpperCase() : "?"}
+            </AvatarFallback>
+          )}
         </Avatar>
       )}
       <div className={cn(

@@ -13,12 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/hooks/use-user";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatTimeAgo } from "@/lib/utils";
 import { Property, getPropertyById } from "@/services/properties";
 import { Send, ArrowLeft } from "lucide-react";
 import ChatMessage from "./ChatMessage";
@@ -40,6 +37,7 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const [otherParticipant, setOtherParticipant] = useState<any>(null);
+  const [anonymousParticipant, setAnonymousParticipant] = useState<any>(null);
   
   // Load messages
   useEffect(() => {
@@ -77,23 +75,49 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
   
   // Update user's active status periodically
   useEffect(() => {
-    updateUserLastActive();
-    const interval = setInterval(updateUserLastActive, 60000); // Every minute
-    return () => clearInterval(interval);
-  }, []);
+    if (user) {
+      updateUserLastActive();
+      const interval = setInterval(updateUserLastActive, 60000); // Every minute
+      return () => clearInterval(interval);
+    }
+  }, [user]);
   
-  // Find the other participant
+  // Find participants
   useEffect(() => {
-    if (chatRoom.participants && user) {
-      const other = chatRoom.participants.find(p => 
-        p.user_id !== user.id && p.user_id !== null
-      );
-      if (other) {
-        setOtherParticipant({
-          id: other.user_id,
-          name: other.profile?.name || "Usuário",
-          photo: other.profile?.photo_url,
-          lastSeen: other.profile?.last_active_at
+    if (chatRoom.participants) {
+      // Find other participant (non-anonymous)
+      if (user) {
+        const other = chatRoom.participants.find(p => 
+          p.user_id !== user.id && p.user_id !== null
+        );
+        if (other) {
+          setOtherParticipant({
+            id: other.user_id,
+            name: other.profile?.name || "Usuário",
+            photo: other.profile?.photo_url,
+            lastSeen: other.profile?.last_active_at
+          });
+        }
+      } else {
+        // For anonymous users, find the property owner
+        const other = chatRoom.participants.find(p => 
+          !p.is_anonymous
+        );
+        if (other) {
+          setOtherParticipant({
+            id: other.user_id,
+            name: other.profile?.name || "Usuário",
+            photo: other.profile?.photo_url,
+            lastSeen: other.profile?.last_active_at
+          });
+        }
+      }
+      
+      // Find anonymous participant
+      const anonymous = chatRoom.participants.find(p => p.is_anonymous);
+      if (anonymous) {
+        setAnonymousParticipant({
+          name: anonymous.anonymous_name || "Visitante"
         });
       }
     }
@@ -178,7 +202,9 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
               </Avatar>
               <div>
                 <div className="font-medium">{otherParticipant.name}</div>
-                <UserStatus userId={otherParticipant.id} lastSeen={otherParticipant.lastSeen} />
+                {otherParticipant.id && (
+                  <UserStatus userId={otherParticipant.id} lastSeen={otherParticipant.lastSeen} />
+                )}
               </div>
             </>
           ) : (
@@ -228,7 +254,11 @@ export default function ChatInterface({ chatRoom, onBack }: ChatInterfaceProps) 
               <ChatMessage 
                 key={message.id} 
                 message={message} 
-                isOwnMessage={user?.id === message.sender_id}
+                isOwnMessage={
+                  user 
+                    ? user.id === message.sender_id
+                    : message.is_anonymous && (!message.sender_id || message.sender_id === null)
+                }
               />
             ))
           )}

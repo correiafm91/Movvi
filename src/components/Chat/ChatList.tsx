@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { getChatRooms, ChatRoomWithDetails } from "@/services/chat";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +23,6 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
   
   useEffect(() => {
     const loadChatRooms = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
       try {
         const { rooms } = await getChatRooms();
         setChatRooms(rooms);
@@ -58,24 +52,7 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
     return () => {
       supabase.removeChannel(chatChannel);
     };
-  }, [user]);
-  
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-6">
-        <MessageCircle className="w-10 h-10 text-blue-600 mb-2" />
-        <h3 className="text-lg font-medium mb-2">Chat Imobiliário</h3>
-        <p className="text-sm text-gray-500 text-center mb-4">
-          Conecte-se com corretores e tire todas as suas dúvidas sobre os imóveis.
-        </p>
-        <Link to="/auth">
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            Entrar para começar a conversar
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  }, []);
   
   if (loading) {
     return <div className="p-4 text-center">Carregando conversas...</div>;
@@ -104,10 +81,16 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
       <div className="p-2 space-y-1">
         {chatRooms.map((room) => {
           // Find the other participant in this conversation
-          const otherParticipant = room.participants.find(p => p.user_id !== user?.id && p.user_id !== null);
+          const otherParticipant = user 
+            ? room.participants.find(p => p.user_id !== user.id && p.user_id !== null)
+            : room.participants.find(p => p.user_id !== null);
+            
           const otherProfile = otherParticipant?.profile;
           const lastMessage = room.last_message;
           const hasUnread = room.unread_count > 0;
+          
+          // Anonymous participants
+          const anonymousParticipant = room.participants.find(p => p.is_anonymous);
           
           return (
             <div 
@@ -119,15 +102,22 @@ export default function ChatList({ onSelectChat }: ChatListProps) {
             >
               <div className="flex gap-3">
                 <Avatar className="h-12 w-12 flex-shrink-0">
-                  <AvatarImage src={otherProfile?.photo_url} />
-                  <AvatarFallback className="bg-blue-100 text-blue-600">
-                    {otherProfile?.name ? otherProfile.name.charAt(0).toUpperCase() : "?"}
-                  </AvatarFallback>
+                  {otherProfile?.photo_url ? (
+                    <AvatarImage src={otherProfile.photo_url} />
+                  ) : (
+                    <AvatarFallback className="bg-blue-100 text-blue-600">
+                      {otherProfile?.name 
+                        ? otherProfile.name.charAt(0).toUpperCase() 
+                        : anonymousParticipant?.anonymous_name 
+                          ? anonymousParticipant.anonymous_name.charAt(0).toUpperCase()
+                          : "?"}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
                     <div className="font-medium truncate">
-                      {otherProfile?.name || "Usuário"}
+                      {otherProfile?.name || anonymousParticipant?.anonymous_name || "Usuário"}
                     </div>
                     {lastMessage && (
                       <span className="text-xs text-gray-500">

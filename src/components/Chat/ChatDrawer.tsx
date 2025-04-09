@@ -4,26 +4,19 @@ import { Drawer, DrawerContent, DrawerTrigger, DrawerClose } from "@/components/
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ChatRoomWithDetails, getChatRooms, subscribeToNewMessages } from "@/services/chat";
+import { ChatRoomWithDetails, getChatRooms } from "@/services/chat";
 import ChatList from "./ChatList";
 import ChatInterface from "./ChatInterface";
-import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function ChatDrawer() {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeChat, setActiveChat] = useState<ChatRoomWithDetails | null>(null);
-  const { user } = useUser();
 
   // Get total unread count
   useEffect(() => {
     const getUnreadCount = async () => {
-      if (!user) {
-        setUnreadCount(0);
-        return;
-      }
-
       try {
         const { rooms } = await getChatRooms();
         const count = rooms.reduce((acc, room) => acc + (room.unread_count || 0), 0);
@@ -41,12 +34,8 @@ export default function ChatDrawer() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
-          const newMessage = payload.new as any;
-          // If message is not from current user, increment unread count
-          if (newMessage.sender_id !== user?.id) {
-            setUnreadCount(prev => prev + 1);
-          }
+        () => {
+          getUnreadCount();
         }
       )
       .subscribe();
@@ -54,7 +43,7 @@ export default function ChatDrawer() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, []);
 
   const handleSelectChat = (chatRoom: ChatRoomWithDetails) => {
     setActiveChat(chatRoom);
