@@ -46,6 +46,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { formatTimeAgo } from "@/lib/utils";
+import ChatButton from "@/components/ChatButton";
+import UserStatus from "@/components/Chat/UserStatus";
 
 const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,10 +55,12 @@ const PropertyDetails = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [owner, setOwner] = useState<{
+    id?: string;
     name?: string;
     photo_url?: string;
     creci_code?: string | null;
     is_realtor?: boolean;
+    last_active_at?: string | null;
   } | null>(null);
   const { toast } = useToast();
 
@@ -84,7 +88,10 @@ const PropertyDetails = () => {
         if (propertyData.owner_id) {
           const { profile } = await getRealtorInfo(propertyData.owner_id);
           if (profile) {
-            setOwner(profile);
+            setOwner({
+              id: propertyData.owner_id,
+              ...profile
+            });
           }
         }
       } catch (error) {
@@ -310,6 +317,16 @@ const PropertyDetails = () => {
                       >
                         <MessageSquare size={18} /> Contato via WhatsApp
                       </Button>
+
+                      {property.owner_id && (
+                        <ChatButton 
+                          propertyId={property.id}
+                          ownerName={owner?.name}
+                          fullWidth
+                          className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+                          variant="outline"
+                        />
+                      )}
                       
                       <Popover>
                         <PopoverTrigger asChild>
@@ -369,27 +386,30 @@ const PropertyDetails = () => {
                         {owner.is_realtor && owner.creci_code && (
                           <p className="text-sm text-gray-500">CRECI: {owner.creci_code}</p>
                         )}
+                        {owner.id && owner.last_active_at && (
+                          <UserStatus userId={owner.id} lastSeen={owner.last_active_at} />
+                        )}
                       </div>
                     </div>
                   </CardContent>
-                  {property.contact_phone && (
-                    <CardFooter className="border-t pt-4 flex flex-col items-start gap-2">
+                  <CardFooter className="border-t pt-4 flex flex-col items-start gap-2">
+                    {property.contact_phone && (
                       <p className="text-sm flex items-center gap-2">
                         <Phone size={14} className="text-gray-500" />
                         {property.contact_phone}
                       </p>
-                      
-                      {owner.is_realtor && (
-                        <Button 
-                          variant="default" 
-                          className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={() => navigate(`/realtor/${property.owner_id}`)}
-                        >
-                          <User size={16} className="mr-1" /> Mais imóveis deste corretor
-                        </Button>
-                      )}
-                    </CardFooter>
-                  )}
+                    )}
+                    
+                    {owner.is_realtor && property.owner_id && (
+                      <Button 
+                        variant="default" 
+                        className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => navigate(`/realtor/${property.owner_id}`)}
+                      >
+                        <User size={16} className="mr-1" /> Mais imóveis deste corretor
+                      </Button>
+                    )}
+                  </CardFooter>
                 </Card>
               )}
             </div>

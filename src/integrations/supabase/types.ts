@@ -9,6 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          anonymous_name: string | null
+          chat_room_id: string
+          created_at: string | null
+          id: string
+          is_anonymous: boolean | null
+          is_read: boolean | null
+          message: string
+          property_id: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          anonymous_name?: string | null
+          chat_room_id: string
+          created_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          is_read?: boolean | null
+          message: string
+          property_id?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          anonymous_name?: string | null
+          chat_room_id?: string
+          created_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          property_id?: string | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participants: {
+        Row: {
+          anonymous_name: string | null
+          chat_room_id: string
+          created_at: string | null
+          id: string
+          is_anonymous: boolean | null
+          last_seen_at: string | null
+          property_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_name?: string | null
+          chat_room_id: string
+          created_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          last_seen_at?: string | null
+          property_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_name?: string | null
+          chat_room_id?: string
+          created_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          last_seen_at?: string | null
+          property_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ad_count: number | null
@@ -21,6 +138,7 @@ export type Database = {
           id: string
           is_agency: boolean | null
           is_realtor: boolean | null
+          last_active_at: string | null
           level_id: number | null
           name: string | null
           phone: string | null
@@ -43,6 +161,7 @@ export type Database = {
           id: string
           is_agency?: boolean | null
           is_realtor?: boolean | null
+          last_active_at?: string | null
           level_id?: number | null
           name?: string | null
           phone?: string | null
@@ -65,6 +184,7 @@ export type Database = {
           id?: string
           is_agency?: boolean | null
           is_realtor?: boolean | null
+          last_active_at?: string | null
           level_id?: number | null
           name?: string | null
           phone?: string | null

@@ -31,6 +31,7 @@ export type Profile = {
   positive_ratings?: number | null;
   display_badge?: boolean | null;
   completed_missions?: string[] | null;
+  last_active_at?: string | null;
 };
 
 export async function signUp({ email, password }: AuthSignUpCredentials) {
@@ -154,15 +155,20 @@ export async function uploadProfilePhoto(file: File): Promise<{ url: string | nu
 }
 
 export async function getRealtorInfo(userId: string): Promise<{ profile: Profile | null, error: Error | null }> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('name, photo_url, creci_code, cnpj, is_realtor, is_agency, work_state, work_city, scheduling_link')
-    .eq('id', userId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('name, photo_url, creci_code, cnpj, is_realtor, is_agency, work_state, work_city, scheduling_link, last_active_at')
+      .eq('id', userId)
+      .single();
 
-  if (error) {
-    return { profile: null, error };
+    if (error) {
+      return { profile: null, error };
+    }
+
+    return { profile: { id: userId, ...data } as Profile, error: null };
+  } catch (error) {
+    console.error("Error getting realtor info:", error);
+    return { profile: null, error: error as Error };
   }
-
-  return { profile: data as Profile, error: null };
 }

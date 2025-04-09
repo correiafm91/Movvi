@@ -11,6 +11,7 @@ import MyProperties from "@/components/MyProperties";
 import RealtorProfile from "@/pages/RealtorProfile";
 import { Toaster } from "@/components/ui/toaster";
 import { UserProvider } from "@/hooks/use-user";
+import ChatDrawer from "@/components/Chat/ChatDrawer";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
+        <ChatDrawer />
       </Router>
     </UserProvider>
   );
