@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { Profile } from "./auth";
@@ -123,7 +124,59 @@ export const getChatRooms = async (): Promise<{ rooms: ChatRoomWithDetails[], er
 
       return { rooms: enhancedRooms, error: null };
     } else {
-      return { rooms: [], error: null };
+      // For anonymous users, try to get rooms from localStorage
+      const anonymousRooms = [];
+      
+      // If there's a saved chat ID in localStorage, try to fetch it
+      const savedChatId = localStorage.getItem('activeChat');
+      if (savedChatId) {
+        const { data: room, error: roomError } = await supabase
+          .from('chat_rooms')
+          .select('*')
+          .eq('id', savedChatId)
+          .single();
+        
+        if (room) {
+          const { data: lastMessageData } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('chat_room_id', room.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+          const { data: participants } = await supabase
+            .from('chat_participants')
+            .select('*')
+            .eq('chat_room_id', room.id);
+            
+          const enhancedParticipants = await Promise.all((participants || []).map(async (p) => {
+            if (p.user_id) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', p.user_id)
+                .single();
+                
+              return { ...p, profile: profileData || undefined };
+            }
+            return p;
+          }));
+          
+          const propertyParticipant = participants?.find(p => p.property_id);
+          const property_id = propertyParticipant?.property_id;
+          
+          anonymousRooms.push({
+            ...room,
+            last_message: lastMessageData || undefined,
+            participants: enhancedParticipants || [],
+            unread_count: 0,
+            property_id
+          });
+        }
+      }
+      
+      return { rooms: anonymousRooms, error: null };
     }
   } catch (error) {
     console.error("Error in getChatRooms:", error);
@@ -364,6 +417,49 @@ export const subscribeToNewMessages = (
         callback(payload.new as ChatMessage);
       }
     )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `chat_room_id=eq.${roomId}`
+      },
+      (payload) => {
+        // Force refresh messages when a message is updated or deleted
+        getChatMessages(roomId).then(({ messages }) => {
+          // This will trigger a component re-render with updated messages
+          callback(payload.new as ChatMessage);
+        });
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `chat_room_id=eq.${roomId}`
+      },
+      () => {
+        // Force refresh messages when a message is deleted
+        getChatMessages(roomId).then(({ messages }) => {
+          // We can't pass the deleted message (it's not in payload.old)
+          // so we trigger a refresh by sending a dummy message that will be filtered out
+          callback({
+            id: 'refresh-trigger',
+            chat_room_id: roomId,
+            sender_id: null,
+            is_anonymous: null,
+            anonymous_name: null,
+            message: '',
+            created_at: new Date().toISOString(),
+            is_read: null,
+            property_id: null
+          });
+        });
+      }
+    )
     .subscribe();
 
   return () => {
@@ -396,4 +492,86 @@ export const subscribeToUserPresence = (
   return () => {
     supabase.removeChannel(channel);
   };
+};
+
+// New functions for message operations
+
+export const deleteMessage = async (messageId: string): Promise<{ success: boolean, error: Error | null }> => {
+  try {
+    const { error } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (error) {
+      console.error("Error deleting message:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error in deleteMessage:", error);
+    return { success: false, error: error as Error };
+  }
+};
+
+export const editMessage = async (messageId: string, newText: string): Promise<{ success: boolean, error: Error | null }> => {
+  try {
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ message: newText })
+      .eq('id', messageId);
+
+    if (error) {
+      console.error("Error editing message:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error in editMessage:", error);
+    return { success: false, error: error as Error };
+  }
+};
+
+export const deleteConversation = async (roomId: string): Promise<{ success: boolean, error: Error | null }> => {
+  try {
+    // First delete all messages in the room
+    const { error: messagesError } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('chat_room_id', roomId);
+
+    if (messagesError) {
+      console.error("Error deleting messages:", messagesError);
+      return { success: false, error: messagesError };
+    }
+
+    // Then delete all participants
+    const { error: participantsError } = await supabase
+      .from('chat_participants')
+      .delete()
+      .eq('chat_room_id', roomId);
+
+    if (participantsError) {
+      console.error("Error deleting participants:", participantsError);
+      return { success: false, error: participantsError };
+    }
+
+    // Finally delete the room itself
+    const { error: roomError } = await supabase
+      .from('chat_rooms')
+      .delete()
+      .eq('id', roomId);
+
+    if (roomError) {
+      console.error("Error deleting room:", roomError);
+      return { success: false, error: roomError };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error in deleteConversation:", error);
+    return { success: false, error: error as Error };
+  }
 };

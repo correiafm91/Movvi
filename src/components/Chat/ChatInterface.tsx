@@ -8,7 +8,8 @@ import {
   ChatMessage as ChatMessageType,
   ChatRoomWithDetails,
   subscribeToNewMessages,
-  updateUserLastActive
+  updateUserLastActive,
+  deleteConversation
 } from "@/services/chat";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +18,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Property, getPropertyById } from "@/services/properties";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, MoreVertical, Trash2 } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import UserStatus from "./UserStatus";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChatInterfaceProps {
   chatRoom: ChatRoomWithDetails;
@@ -62,7 +69,12 @@ export default function ChatInterface({ chatRoom, onBack, useFullHeight = false 
     
     // Set up real-time subscription for new messages
     const unsubscribe = subscribeToNewMessages(chatRoom.id, (newMessage) => {
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      setMessages((prevMessages) => {
+        // Check if the message is already in the array to avoid duplicates
+        const exists = prevMessages.some(msg => msg.id === newMessage.id);
+        if (exists) return prevMessages;
+        return [...prevMessages, newMessage];
+      });
       // Mark as read if the message is not from the current user
       if (newMessage.sender_id !== user?.id) {
         markMessagesAsRead(chatRoom.id);
@@ -178,6 +190,36 @@ export default function ChatInterface({ chatRoom, onBack, useFullHeight = false 
       handleSendMessage();
     }
   };
+
+  const handleDeleteConversation = async () => {
+    try {
+      const { success, error } = await deleteConversation(chatRoom.id);
+      if (success) {
+        toast({
+          title: "Conversa excluída",
+          description: "A conversa foi excluída com sucesso.",
+        });
+        // Remove from localStorage if it was the active chat
+        if (localStorage.getItem('activeChat') === chatRoom.id) {
+          localStorage.removeItem('activeChat');
+        }
+        onBack();
+      } else {
+        toast({
+          title: "Erro ao excluir conversa",
+          description: error?.message || "Ocorreu um erro ao excluir a conversa.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      toast({
+        title: "Erro ao excluir conversa",
+        description: "Ocorreu um erro ao excluir a conversa.",
+        variant: "destructive",
+      });
+    }
+  };
   
   return (
     <div className={`flex flex-col bg-white ${useFullHeight ? 'h-full' : ''}`}>
@@ -212,6 +254,20 @@ export default function ChatInterface({ chatRoom, onBack, useFullHeight = false 
             <div className="font-medium">Chat</div>
           )}
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDeleteConversation} className="text-red-600">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir conversa
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       {/* Property card if applicable */}
