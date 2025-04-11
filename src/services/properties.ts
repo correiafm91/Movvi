@@ -264,17 +264,49 @@ export async function updateProperty(id: string, updates: Partial<Property>): Pr
 }
 
 export async function deleteProperty(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('properties')
-    .delete()
-    .eq('id', id);
+  try {
+    const { data: images } = await supabase
+      .from('property_images')
+      .select('image_url')
+      .eq('property_id', id);
+    
+    if (images && images.length > 0) {
+      await supabase
+        .from('property_images')
+        .delete()
+        .eq('property_id', id);
+        
+      const fileNames = images.map(img => {
+        const urlParts = img.image_url.split('/');
+        return urlParts[urlParts.length - 1];
+      });
+      
+      for (const fileName of fileNames) {
+        try {
+          await supabase.storage
+            .from('properties')
+            .remove([fileName]);
+        } catch (error) {
+          console.warn("Could not delete storage file:", fileName, error);
+        }
+      }
+    }
 
-  if (error) {
-    console.error("Error deleting property:", error);
+    const { error } = await supabase
+      .from('properties')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error deleting property:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in deleteProperty:", error);
     return false;
   }
-
-  return true;
 }
 
 export async function getPropertiesByOwner(ownerId?: string): Promise<Property[]> {
